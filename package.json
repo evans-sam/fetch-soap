@@ -1,11 +1,10 @@
 {
-  "name": "soap",
-  "version": "1.6.0",
-  "description": "A minimal node SOAP client",
+  "name": "fetch-soap",
+  "version": "0.1.0",
+  "description": "A universal SOAP client using fetch - works in browsers, edge runtimes, and Node.js",
   "engines": {
-    "node": ">=14.17.0"
+    "node": ">=18.0.0"
   },
-  "author": "Vinay Pulim <v@pulim.com>",
   "dependencies": {
     "axios": "^1.13.1",
     "axios-ntlm": "^1.4.6",
@@ -20,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/vpulim/node-soap.git"
+    "url": "https://github.com/evans-sam/fetch-soap.git"
   },
   "main": "./lib/soap.js",
   "types": "./lib/soap.d.ts",
@@ -41,7 +40,14 @@
     "test": "mocha --timeout 15000 --bail --exit test/*-test.js test/security/*.js"
   },
   "keywords": [
-    "soap"
+    "soap",
+    "fetch",
+    "wsdl",
+    "browser",
+    "edge",
+    "cloudflare",
+    "workers",
+    "universal"
   ],
   "license": "MIT",
   "devDependencies": {
@@ -60,7 +66,7 @@
     "eslint": "^9.38.0",
     "express": "^5.1.0",
     "finalhandler": "^2.1.0",
-    "glob": "^11.0.3",
+    "glob": "11.1.0",
     "mocha": "^11.7.4",
     "nyc": "^17.1.0",
     "prettier": "^3.6.2",

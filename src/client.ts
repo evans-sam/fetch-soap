@@ -16,7 +16,7 @@ import { findPrefix } from './utils';
 import { WSDL } from './wsdl';
 import { IPort, OperationElement, ServiceElement } from './wsdl/elements';
 
-const debug = debugBuilder('node-soap');
+const debug = debugBuilder('fetch-soap');
 
 const nonIdentifierChars = /[^a-z$_0-9]/i;
 

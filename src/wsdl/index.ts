@@ -19,7 +19,7 @@ import { IOptions } from '../types';
 import { findPrefix, splitQName, TNS_PREFIX, xmlEscape } from '../utils';
 import * as elements from './elements';
 
-const debug = debugBuilder('node-soap');
+const debug = debugBuilder('fetch-soap');
 
 const XSI_URI = 'http://www.w3.org/2001/XMLSchema-instance';
 const ENV_URI = 'http://schemas.xmlsoap.org/soap/envelope/';

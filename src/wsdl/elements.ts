@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import { IWsdlBaseOptions } from '../types';
 import { splitQName, TNS_PREFIX } from '../utils';
 
-const debug = debugBuilder('node-soap');
+const debug = debugBuilder('fetch-soap');
 
 const Primitives: {
   [type: string]: number;

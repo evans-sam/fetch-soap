@@ -8,3 +8,7 @@ yarn.lock
 *.iml
 /lib
 /docs
+
+# Claude Code
+CLAUDE.md
+.claude/

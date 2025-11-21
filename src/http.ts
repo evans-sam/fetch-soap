@@ -14,7 +14,7 @@ import { gzipSync } from 'zlib';
 import { IExOptions, IHeaders, IHttpClient, IOptions } from './types';
 import { parseMTOMResp } from './utils';
 
-const debug = debugBuilder('node-soap');
+const debug = debugBuilder('fetch-soap');
 import { version } from '../package.json';
 
 export interface IAttachment {
@@ -56,7 +56,7 @@ export class HttpClient implements IHttpClient {
     const host = curl.hostname;
     const port = parseInt(curl.port, 10);
     const headers: IHeaders = {
-      'User-Agent': 'node-soap/' + version,
+      'User-Agent': 'fetch-soap/' + version,
       'Accept': 'text/html,application/xhtml+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
       'Accept-Encoding': 'none',
       'Accept-Charset': 'utf-8',
