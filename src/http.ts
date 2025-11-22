@@ -3,7 +3,7 @@
  * MIT Licensed
  */
 
-import * as req from 'axios';
+import axios, { AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { NtlmClient } from 'axios-ntlm';
 import { randomUUID } from 'crypto';
 import debugBuilder from 'debug';
@@ -32,13 +32,13 @@ export interface IAttachment {
  * @constructor
  */
 export class HttpClient implements IHttpClient {
-  private _request: req.AxiosInstance;
+  private _request: AxiosInstance;
   private options: IOptions;
 
   constructor(options?: IOptions) {
     options = options || {};
     this.options = options;
-    this._request = options.request || req.create();
+    this._request = options.request || axios.create();
   }
 
   /**
@@ -78,7 +78,7 @@ export class HttpClient implements IHttpClient {
       headers[attr] = exheaders[attr];
     }
 
-    const options: req.AxiosRequestConfig = {
+    const options: AxiosRequestConfig = {
       url: curl.href,
       method: method,
       headers: headers,
@@ -158,12 +158,11 @@ export class HttpClient implements IHttpClient {
 
   /**
    * Handle the http response
-   * @param {Object} The req object
+   * @param {Object} req object
    * @param {Object} res The res object
    * @param {Object} body The http body
-   * @param {Object} The parsed body
    */
-  public handleResponse(req: req.AxiosPromise, res: req.AxiosResponse, body: any) {
+  public handleResponse(req: AxiosPromise, res: AxiosResponse, body: any) {
     debug('Http response body: %j', body);
     if (typeof body === 'string') {
       // Remove any extra characters that appear before or after the SOAP envelope.
@@ -178,7 +177,7 @@ export class HttpClient implements IHttpClient {
 
   public request(rurl: string, data: any, callback: (error: any, res?: any, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions) {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
-    let req: req.AxiosPromise;
+    let req: AxiosPromise;
     if (exoptions !== undefined && exoptions.ntlm) {
       const ntlmReq = NtlmClient({
         username: exoptions.username,
@@ -241,7 +240,7 @@ export class HttpClient implements IHttpClient {
     return req;
   }
 
-  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions): req.AxiosPromise<ReadStream> {
+  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions): AxiosPromise<ReadStream> {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
     options.responseType = 'stream';
     const req = this._request(options).then((res) => {
