@@ -1,5 +1,6 @@
 import * as _ from 'lodash';
 import { IHeaders, ISecurity } from '../types';
+import { stringToBase64 } from '../utils';
 
 export class BasicAuthSecurity implements ISecurity {
   private _username: string;
@@ -14,7 +15,7 @@ export class BasicAuthSecurity implements ISecurity {
   }
 
   public addHeaders(headers: IHeaders): void {
-    headers.Authorization = 'Basic ' + Buffer.from(this._username + ':' + this._password || '').toString('base64');
+    headers.Authorization = 'Basic ' + stringToBase64(this._username + ':' + (this._password || ''));
   }
 
   public toXML(): string {

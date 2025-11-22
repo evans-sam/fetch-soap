@@ -13,6 +13,22 @@ import { parseMTOMResp } from './utils';
 const debug = debugBuilder('fetch-soap');
 import { version } from '../package.json';
 
+const textEncoder = new TextEncoder();
+
+/**
+ * Helper to concatenate multiple Uint8Arrays into one
+ */
+function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
+  const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  return result;
+}
+
 export interface IAttachment {
   name: string;
   contentId: string;
@@ -65,7 +81,7 @@ export class HttpClient implements IHttpClient {
     const attachments: IAttachment[] = _attachments || [];
 
     if (typeof data === 'string' && attachments.length === 0 && !exoptions.forceMTOM) {
-      headers['Content-Length'] = Buffer.byteLength(data, 'utf8');
+      headers['Content-Length'] = new TextEncoder().encode(data).length;
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
@@ -115,19 +131,23 @@ export class HttpClient implements IHttpClient {
           'body': attachment.body,
         });
       });
-      options.data = [Buffer.from(`--${boundary}\r\n`)];
+      const dataParts: Uint8Array[] = [textEncoder.encode(`--${boundary}\r\n`)];
 
       let multipartCount = 0;
       multipart.forEach((part) => {
         Object.keys(part).forEach((key) => {
           if (key !== 'body') {
-            options.data.push(Buffer.from(`${key}: ${part[key]}\r\n`));
+            dataParts.push(textEncoder.encode(`${key}: ${part[key]}\r\n`));
           }
         });
-        options.data.push(Buffer.from('\r\n'), Buffer.from(part.body), Buffer.from(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
+        dataParts.push(
+          textEncoder.encode('\r\n'),
+          textEncoder.encode(part.body),
+          textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`),
+        );
         multipartCount++;
       });
-      options.data = Buffer.concat(options.data);
+      options.data = concatUint8Arrays(dataParts);
     } else {
       options.data = data;
     }

@@ -26,12 +26,21 @@ function base64ToUint8Array(base64: string): Uint8Array {
 /**
  * Helper to convert Uint8Array to base64 string
  */
-function uint8ArrayToBase64(bytes: Uint8Array): string {
+export function uint8ArrayToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+/**
+ * Encode a string to base64 (UTF-8 safe)
+ * Handles non-ASCII characters correctly by encoding to UTF-8 first
+ */
+export function stringToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  return uint8ArrayToBase64(bytes);
 }
 
 /**
