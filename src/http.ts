@@ -6,8 +6,6 @@
 import axios, { AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { NtlmClient } from 'axios-ntlm';
 import debugBuilder from 'debug';
-import { ReadStream } from 'fs';
-import * as url from 'url';
 import MIMEType from 'whatwg-mimetype';
 import { gzipSync } from 'zlib';
 import { IExOptions, IHeaders, IHttpClient, IOptions } from './types';
@@ -20,7 +18,7 @@ export interface IAttachment {
   name: string;
   contentId: string;
   mimetype: string;
-  body: NodeJS.ReadableStream;
+  body: ReadableStream | NodeJS.ReadableStream;
 }
 
 /**
@@ -49,11 +47,11 @@ export class HttpClient implements IHttpClient {
    * @returns {Object} The http request object for the `request` module
    */
   public buildRequest(rurl: string, data: any, exheaders?: IHeaders, exoptions: IExOptions = {}): any {
-    const curl = url.parse(rurl);
+    const curl = new URL(rurl);
     const method = data ? 'POST' : 'GET';
 
     const host = curl.hostname;
-    const port = parseInt(curl.port, 10);
+    const port = parseInt(curl.port || '', 10);
     const headers: IHeaders = {
       'User-Agent': 'fetch-soap/' + version,
       'Accept': 'text/html,application/xhtml+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
@@ -239,7 +237,7 @@ export class HttpClient implements IHttpClient {
     return req;
   }
 
-  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions): AxiosPromise<ReadStream> {
+  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions): AxiosPromise<NodeJS.ReadableStream> {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
     options.responseType = 'stream';
     const req = this._request(options).then((res) => {

@@ -2,13 +2,15 @@
 
 var soap = require('..'),
   http = require('http'),
-  assert = require('assert');
+  assert = require('assert'),
+  testHelpers = require('./test-helpers');
 
 describe('testing adding header rely on completed xml', () => {
   let server = null;
   let hostname = '127.0.0.1';
   let port = 15099;
   let baseUrl = 'http://' + hostname + ':' + port;
+  var mockHttpClient = testHelpers.createMockHttpClient(__dirname);
   const envelope =
     '<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' +
     ' xmlns:xsd="http://www.w3.org/2001/XMLSchema"' +
@@ -33,7 +35,8 @@ describe('testing adding header rely on completed xml', () => {
 
   it('should add header to request, which created from xml before request', function (done) {
     soap.createClient(
-      __dirname + '/wsdl/complex/registration-common.wsdl',
+      testHelpers.toTestUrl(__dirname + '/wsdl/complex/registration-common.wsdl'),
+      { httpClient: mockHttpClient },
       function (err, client) {
         if (err) {
           return void done(err);

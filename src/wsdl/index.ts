@@ -7,12 +7,9 @@
 
 import { ok as assert } from 'assert';
 import debugBuilder from 'debug';
-import * as fs from 'fs';
 import * as _ from 'lodash';
-import * as path from 'path';
 import * as sax from 'sax';
 import stripBom from 'strip-bom';
-import * as url from 'url';
 import { HttpClient } from '../http';
 import { NamespaceContext } from '../nscontext';
 import { IOptions } from '../types';
@@ -83,7 +80,7 @@ export class WSDL {
       throw new Error('WSDL constructor takes either an XML string or service definition');
     }
 
-    process.nextTick(() => {
+    queueMicrotask(() => {
       try {
         fromFunc.call(this, definition);
       } catch (e) {
@@ -1217,15 +1214,15 @@ export class WSDL {
     }
 
     let includePath: string;
-    if (!/^https?:/i.test(this.uri) && !/^https?:/i.test(include.location)) {
-      const isFixed = this.options.wsdl_options !== undefined && Object.prototype.hasOwnProperty.call(this.options.wsdl_options, 'fixedPath') ? this.options.wsdl_options.fixedPath : false;
-      if (isFixed) {
-        includePath = path.resolve(path.dirname(this.uri), path.parse(include.location).base);
-      } else {
-        includePath = path.resolve(path.dirname(this.uri), include.location);
-      }
+    if (/^https?:/i.test(include.location)) {
+      // Absolute URL in include
+      includePath = include.location;
+    } else if (/^https?:/i.test(this.uri)) {
+      // Relative include with URL base - use URL API for resolution
+      includePath = new URL(include.location, this.uri).href;
     } else {
-      includePath = url.resolve(this.uri || '', include.location);
+      // Local file paths are not supported in universal runtime
+      return callback(new Error(`Local file system paths are not supported. WSDL must be loaded via URL or inline XML string. Cannot resolve: ${include.location}`));
     }
 
     const options = Object.assign({}, this.options);
@@ -1430,23 +1427,13 @@ export function open_wsdl(uri: any, p2: WSDLCallback | IOptions, p3?: WSDLCallba
 
   let wsdl: WSDL;
   if (/^<\?xml[^>]*?>/i.test(uri)) {
+    // Inline XML string
     wsdl = new WSDL(uri, uri, options);
     WSDL_CACHE[uri] = wsdl;
     wsdl.WSDL_CACHE = WSDL_CACHE;
     wsdl.onReady(callback);
-  } else if (!/^https?:/i.test(uri)) {
-    debug('Reading file: %s', uri);
-    fs.readFile(uri, 'utf8', (err, definition) => {
-      if (err) {
-        callback(err);
-      } else {
-        wsdl = new WSDL(definition, uri, options);
-        WSDL_CACHE[uri] = wsdl;
-        wsdl.WSDL_CACHE = WSDL_CACHE;
-        wsdl.onReady(callback);
-      }
-    });
-  } else {
+  } else if (/^https?:/i.test(uri)) {
+    // HTTP/HTTPS URL
     debug('Reading url: %s', uri);
     const httpClient = options.httpClient || new HttpClient(options);
     httpClient.request(
@@ -1467,6 +1454,11 @@ export function open_wsdl(uri: any, p2: WSDLCallback | IOptions, p3?: WSDLCallba
       request_headers,
       request_options,
     );
+  } else {
+    // Local file paths are not supported in universal runtime
+    queueMicrotask(() => {
+      callback(new Error(`Local file system paths are not supported. WSDL must be loaded via URL (http:// or https://) or as an inline XML string starting with <?xml. Received: ${uri}`));
+    });
   }
 
   return wsdl;

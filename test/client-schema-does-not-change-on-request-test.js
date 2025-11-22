@@ -4,6 +4,7 @@ const path = require('path');
 var http = require('http');
 var jsdiff = require('diff');
 var assert = require('assert');
+var testHelpers = require('./test-helpers');
 
 let server;
 let port;
@@ -84,9 +85,13 @@ describe('SOAP Client schema does not change', () => {
 
     requestContext.expectedRequest = requestXML;
     requestContext.responseToSend = responseXML;
+
+    const wsdlUrl = testHelpers.toTestUrl(wsdlPath);
+    const options = testHelpers.getTestOptions(__dirname, { disableCache: true });
+
     soap.createClient(
-      wsdlPath,
-      { disableCache: true },
+      wsdlUrl,
+      options,
       function (err, client) {
         if (err) {
           throw err;
