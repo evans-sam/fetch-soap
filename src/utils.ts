@@ -2,6 +2,16 @@ import { IMTOMAttachments, IWSDLCache } from './types';
 import { WSDL } from './wsdl';
 
 /**
+ * Simple assertion function (replaces Node.js assert module)
+ * Throws an error if the condition is falsy
+ */
+export function assert(condition: unknown, message?: string): asserts condition {
+  if (!condition) {
+    throw new Error(message || 'Assertion failed');
+  }
+}
+
+/**
  * Helper to convert a base64 string to Uint8Array
  */
 function base64ToUint8Array(base64: string): Uint8Array {

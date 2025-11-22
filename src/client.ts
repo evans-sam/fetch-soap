@@ -3,15 +3,14 @@
  * MIT Licensed
  */
 
-import * as assert from 'assert';
 import { AxiosResponseHeaders, RawAxiosResponseHeaders } from 'axios';
 import debugBuilder from 'debug';
-import { EventEmitter } from 'events';
+import EventEmitter from 'eventemitter3';
 import getStream from 'get-stream';
 import * as _ from 'lodash';
 import { HttpClient } from './http';
 import { IHeaders, IHttpClient, IMTOMAttachments, IOptions, ISecurity, SoapMethod, SoapMethodAsync } from './types';
-import { findPrefix } from './utils';
+import { assert, findPrefix } from './utils';
 import { WSDL } from './wsdl';
 import { IPort, OperationElement, ServiceElement } from './wsdl/elements';
 
@@ -419,11 +418,11 @@ export class Client extends EventEmitter {
     }
 
     if (style === 'rpc' && (input.parts || input.name === 'element' || args === null)) {
-      assert.ok(!style || style === 'rpc', 'invalid message definition for document style binding');
+      assert(!style || style === 'rpc', 'invalid message definition for document style binding');
       message = this.wsdl.objectToRpcXML(name, args, alias, ns, input.name !== 'element');
       if (method.inputSoap === 'encoded') encoding = 'soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" ';
     } else {
-      assert.ok(!style || style === 'document', 'invalid message definition for rpc style binding');
+      assert(!style || style === 'document', 'invalid message definition for rpc style binding');
       // pass `input.$lookupType` if `input.$type` could not be found
       message = this.wsdl.objectToDocumentXML(input.$name, args, input.targetNSAlias, input.targetNamespace, input.$type || input.$lookupType);
     }

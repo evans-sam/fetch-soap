@@ -5,7 +5,6 @@
  */
 /*jshint proto:true*/
 
-import { ok as assert } from 'assert';
 import debugBuilder from 'debug';
 import * as _ from 'lodash';
 import * as sax from 'sax';
@@ -13,7 +12,7 @@ import stripBom from 'strip-bom';
 import { HttpClient } from '../http';
 import { NamespaceContext } from '../nscontext';
 import { IOptions } from '../types';
-import { findPrefix, splitQName, TNS_PREFIX, xmlEscape } from '../utils';
+import { assert, findPrefix, splitQName, TNS_PREFIX, xmlEscape } from '../utils';
 import * as elements from './elements';
 
 const debug = debugBuilder('fetch-soap');

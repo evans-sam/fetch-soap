@@ -7,7 +7,6 @@ import axios, { AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse }
 import { NtlmClient } from 'axios-ntlm';
 import debugBuilder from 'debug';
 import MIMEType from 'whatwg-mimetype';
-import { gzipSync } from 'zlib';
 import { IExOptions, IHeaders, IHttpClient, IOptions } from './types';
 import { parseMTOMResp } from './utils';
 
@@ -131,13 +130,6 @@ export class HttpClient implements IHttpClient {
       options.data = Buffer.concat(options.data);
     } else {
       options.data = data;
-    }
-
-    if (exoptions.forceGzip) {
-      options.decompress = true;
-      options.data = gzipSync(options.data);
-      options.headers['Accept-Encoding'] = 'gzip,deflate';
-      options.headers['Content-Encoding'] = 'gzip';
     }
 
     for (const attr in newExoptions) {
