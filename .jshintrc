@@ -17,7 +17,7 @@
   "strict": true,
   "trailing": true,
   "undef": true,
-  "esversion": 6,
+  "esversion": 8,
   "predef": [
     "describe",
     "it",

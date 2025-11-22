@@ -56,6 +56,8 @@ export type Security = ISecurity;
 export interface ISecurity {
   addOptions?(options: any): void;
   toXML?(): string;
+  /** Async version of toXML, required for security implementations using Web Crypto API */
+  toXMLAsync?(): Promise<string>;
   addHeaders?(headers: IHeaders): void;
   postProcess?(xml, envelopeKey): string;
 }

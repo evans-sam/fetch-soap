@@ -5,7 +5,6 @@
 
 import axios, { AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { NtlmClient } from 'axios-ntlm';
-import { randomUUID } from 'crypto';
 import debugBuilder from 'debug';
 import { ReadStream } from 'fs';
 import * as url from 'url';
@@ -88,7 +87,7 @@ export class HttpClient implements IHttpClient {
       options.validateStatus = null;
     }
     if (exoptions.forceMTOM || attachments.length > 0) {
-      const start = randomUUID();
+      const start = crypto.randomUUID();
       let action = null;
       if (headers['Content-Type'].indexOf('action') > -1) {
         for (const ct of headers['Content-Type'].split('; ')) {
@@ -97,7 +96,7 @@ export class HttpClient implements IHttpClient {
           }
         }
       }
-      const boundary = randomUUID();
+      const boundary = crypto.randomUUID();
       headers['Content-Type'] = 'multipart/related; type="application/xop+xml"; start="<' + start + '>"; start-info="text/xml"; boundary=' + boundary;
       if (action) {
         headers['Content-Type'] = headers['Content-Type'] + '; ' + action;

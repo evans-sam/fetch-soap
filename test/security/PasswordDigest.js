@@ -13,8 +13,8 @@ describe('PasswordDigest', function () {
     Utils.passwordDigest.should.be.type('function');
   });
 
-  it('should calculate a valid passworddigest ', function () {
-    var result = Utils.passwordDigest(nonce, created, password);
+  it('should calculate a valid passworddigest ', async function () {
+    var result = await Utils.passwordDigest(nonce, created, password);
     assert.equal(result, expected);
   });
 });

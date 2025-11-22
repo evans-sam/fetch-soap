@@ -1,6 +1,5 @@
-import * as crypto from 'crypto';
 import { ISecurity } from '../types';
-import { passwordDigest, xmlEscape } from '../utils';
+import { generateNonce, passwordDigest, xmlEscape } from '../utils';
 
 const validPasswordTypes = ['PasswordDigest', 'PasswordText'];
 
@@ -65,41 +64,24 @@ export class WSSecurity implements ISecurity {
     }
   }
 
-  public toXML(): string {
-    // avoid dependency on date formatting libraries
-    function getDate(d) {
-      function pad(n) {
-        return n < 10 ? '0' + n : n;
-      }
-      return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds()) + 'Z';
+  private _getDate(d: Date): string {
+    function pad(n: number) {
+      return n < 10 ? '0' + n : n;
     }
-    const now = new Date();
-    const created = getDate(now);
-    let timeStampXml = '';
-    if (this._hasTimeStamp) {
-      const expires = getDate(new Date(now.getTime() + 1000 * 600));
-      timeStampXml = '<wsu:Timestamp wsu:Id="Timestamp-' + created + '">' + '<wsu:Created>' + created + '</wsu:Created>' + '<wsu:Expires>' + expires + '</wsu:Expires>' + '</wsu:Timestamp>';
-    }
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + 'T' + pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds()) + 'Z';
+  }
 
-    let password;
-    let nonce;
-    if (this._hasNonce || this._passwordType !== 'PasswordText') {
-      // nonce = base64 ( sha1 ( created + random ) )
-      const nHash = crypto.createHash('sha1');
-      nHash.update(created + Math.random());
-      nonce = nHash.digest('base64');
-    }
+  private _buildXML(created: string, password: string, nonce: string | null, timeStampXml: string): string {
+    let passwordXml: string;
     if (this._passwordType === 'PasswordText') {
-      password = '<wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">' + xmlEscape(this._password) + '</wsse:Password>';
+      passwordXml = '<wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">' + xmlEscape(this._password) + '</wsse:Password>';
       if (nonce) {
-        password += '<wsse:Nonce EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary">' + nonce + '</wsse:Nonce>';
+        passwordXml += '<wsse:Nonce EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary">' + nonce + '</wsse:Nonce>';
       }
     } else {
-      /* Specific Testcase for passwordDigest calculation cover this code
-      /* istanbul ignore next */
-      password =
+      passwordXml =
         '<wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordDigest">' +
-        passwordDigest(nonce, created, this._password) +
+        password +
         '</wsse:Password>' +
         '<wsse:Nonce EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary">' +
         nonce +
@@ -118,11 +100,64 @@ export class WSSecurity implements ISecurity {
       '<wsse:Username>' +
       xmlEscape(this._username) +
       '</wsse:Username>' +
-      password +
+      passwordXml +
       (this._hasTokenCreated ? '<wsu:Created>' + created + '</wsu:Created>' : '') +
       '</wsse:UsernameToken>' +
       this._appendElement +
       '</wsse:Security>'
     );
+  }
+
+  /**
+   * Synchronous toXML - only works for PasswordText mode.
+   * For PasswordDigest mode, use toXMLAsync() instead.
+   */
+  public toXML(): string {
+    if (this._passwordType !== 'PasswordText') {
+      throw new Error('WSSecurity.toXML() is not supported for PasswordDigest mode. Use toXMLAsync() instead.');
+    }
+
+    const now = new Date();
+    const created = this._getDate(now);
+    let timeStampXml = '';
+    if (this._hasTimeStamp) {
+      const expires = this._getDate(new Date(now.getTime() + 1000 * 600));
+      timeStampXml = '<wsu:Timestamp wsu:Id="Timestamp-' + created + '">' + '<wsu:Created>' + created + '</wsu:Created>' + '<wsu:Expires>' + expires + '</wsu:Expires>' + '</wsu:Timestamp>';
+    }
+
+    let nonce: string | null = null;
+    if (this._hasNonce) {
+      nonce = generateNonce();
+    }
+
+    return this._buildXML(created, this._password, nonce, timeStampXml);
+  }
+
+  /**
+   * Asynchronous toXML - works for both PasswordText and PasswordDigest modes.
+   * Required for PasswordDigest mode as it uses Web Crypto API for SHA-1 hashing.
+   */
+  public async toXMLAsync(): Promise<string> {
+    const now = new Date();
+    const created = this._getDate(now);
+    let timeStampXml = '';
+    if (this._hasTimeStamp) {
+      const expires = this._getDate(new Date(now.getTime() + 1000 * 600));
+      timeStampXml = '<wsu:Timestamp wsu:Id="Timestamp-' + created + '">' + '<wsu:Created>' + created + '</wsu:Created>' + '<wsu:Expires>' + expires + '</wsu:Expires>' + '</wsu:Timestamp>';
+    }
+
+    let nonce: string | null = null;
+    let password = this._password;
+
+    if (this._hasNonce || this._passwordType !== 'PasswordText') {
+      nonce = generateNonce();
+    }
+
+    if (this._passwordType !== 'PasswordText') {
+      // For PasswordDigest, compute the digest asynchronously
+      password = await passwordDigest(nonce!, created, this._password);
+    }
+
+    return this._buildXML(created, password, nonce, timeStampXml);
   }
 }

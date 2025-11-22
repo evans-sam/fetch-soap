@@ -1,25 +1,64 @@
-import * as crypto from 'crypto';
 import { IMTOMAttachments, IWSDLCache } from './types';
 import { WSDL } from './wsdl';
 
-export function passwordDigest(nonce: string, created: string, password: string): string {
-  // digest = base64 ( sha1 ( nonce + created + password ) )
-  const pwHash = crypto.createHash('sha1');
+/**
+ * Helper to convert a base64 string to Uint8Array
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
-  const NonceBytes = Buffer.from(nonce || '', 'base64');
-  const CreatedBytes = Buffer.from(created || '', 'utf8');
-  const PasswordBytes = Buffer.from(password || '', 'utf8');
-  const FullBytes = Buffer.concat([NonceBytes, CreatedBytes, PasswordBytes]);
+/**
+ * Helper to convert Uint8Array to base64 string
+ */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
 
-  pwHash.update(FullBytes);
-  return pwHash.digest('base64');
+/**
+ * Generate a random nonce using Web Crypto API
+ * Returns a base64-encoded 16-byte random value
+ */
+export function generateNonce(): string {
+  const nonceBytes = new Uint8Array(16);
+  crypto.getRandomValues(nonceBytes);
+  return uint8ArrayToBase64(nonceBytes);
+}
+
+/**
+ * Compute WS-Security password digest using Web Crypto API
+ * digest = base64 ( sha1 ( nonce + created + password ) )
+ */
+export async function passwordDigest(nonce: string, created: string, password: string): Promise<string> {
+  const NonceBytes = base64ToUint8Array(nonce || '');
+  const CreatedBytes = new TextEncoder().encode(created || '');
+  const PasswordBytes = new TextEncoder().encode(password || '');
+
+  // Concatenate all bytes
+  const FullBytes = new Uint8Array(NonceBytes.length + CreatedBytes.length + PasswordBytes.length);
+  FullBytes.set(NonceBytes, 0);
+  FullBytes.set(CreatedBytes, NonceBytes.length);
+  FullBytes.set(PasswordBytes, NonceBytes.length + CreatedBytes.length);
+
+  // Compute SHA-1 digest
+  const hashBuffer = await crypto.subtle.digest('SHA-1', FullBytes);
+  return uint8ArrayToBase64(new Uint8Array(hashBuffer));
 }
 
 export const TNS_PREFIX = '__tns__'; // Prefix for targetNamespace
 
 /**
  * Find a key from an object based on the value
- * @param {Object} Namespace prefix/uri mapping
+ * @param {Object} xmlnsMapping prefix/uri mapping
  * @param {*} nsURI value
  * @returns {String} The matching key
  */

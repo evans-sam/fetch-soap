@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { SignedXml } from 'xml-crypto';
 import { ISecurity } from '../types';
 
@@ -36,7 +35,7 @@ function insertStr(src: string, dst: string, pos: number): string {
 }
 
 function generateId(): string {
-  return randomUUID().replace(/-/gm, '');
+  return crypto.randomUUID().replace(/-/gm, '');
 }
 
 function resolvePlaceholderInReferences(references: any[], bodyXpath: string) {
