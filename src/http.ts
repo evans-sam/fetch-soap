@@ -31,7 +31,8 @@ export interface IAttachment {
   name: string;
   contentId: string;
   mimetype: string;
-  body: ReadableStream | NodeJS.ReadableStream;
+  /** The attachment body as a stream or async iterable of bytes */
+  body: ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>;
 }
 
 /**

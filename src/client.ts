@@ -20,13 +20,17 @@ async function streamToString(stream: ReadableStream<Uint8Array>): Promise<strin
   const decoder = new TextDecoder();
   let result = '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    result += decoder.decode(value, { stream: true });
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      result += decoder.decode(value, { stream: true });
+    }
+    result += decoder.decode(); // flush
+    return result;
+  } finally {
+    reader.releaseLock();
   }
-  result += decoder.decode(); // flush
-  return result;
 }
 
 const debug = debugBuilder('fetch-soap');
