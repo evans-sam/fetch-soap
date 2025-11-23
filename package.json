@@ -1,6 +1,6 @@
 {
   "name": "fetch-soap",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A universal SOAP client using fetch - works in browsers, edge runtimes, and Node.js",
   "type": "module",
   "engines": {

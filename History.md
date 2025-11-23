@@ -4,6 +4,10 @@ This project is a fork of [node-soap](https://github.com/vpulim/node-soap) v1.6.
 
 ---
 
+# 1.0.1 / 2025-11-22
+
+- [FIX] Fix bundler compatibility issue with JSON import from package.json
+
 # 1.0.0 / 2025-11-22
 
 Initial release of fetch-soap, a universal SOAP client using the Fetch API.

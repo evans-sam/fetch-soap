@@ -9,7 +9,10 @@ import { IExOptions, IHeaders, IHttpClient, IOptions } from './types';
 import { parseMTOMResp } from './utils';
 
 const debug = debugBuilder('fetch-soap');
-import { version } from '../package.json';
+
+// Use default import for bundler compatibility (named imports from JSON don't work in webpack/Next.js)
+import pkg from '../package.json';
+const version = pkg.version;
 
 const textEncoder = new TextEncoder();
 
