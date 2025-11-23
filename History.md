@@ -4,20 +4,40 @@ This project is a fork of [node-soap](https://github.com/vpulim/node-soap) v1.6.
 
 ---
 
-## Forked from node-soap v1.6.0
+# 1.0.0 / 2025-11-22
 
-The following is the history from node-soap up to the fork point. For the complete node-soap history, see the [node-soap repository](https://github.com/vpulim/node-soap/blob/master/History.md).
+Initial release of fetch-soap, a universal SOAP client using the Fetch API.
+
+### Breaking Changes from node-soap
+
+- **Removed server functionality** - Server-side SOAP hosting has been removed to support universal runtimes
+- **Removed Node.js-specific security classes** - `ClientSSLSecurity`, `ClientSSLSecurityPFX`, `NTLMSecurity`, `WSSecurityCert`, `WSSecurityCertWithToken`, and `WSSecurityPlusCert` have been removed
+- **ES Modules only** - Package is now ESM-only (`"type": "module"`)
+- **Node.js 18+ required** - Minimum Node.js version increased to 18.0.0
+
+### New Features
+
+- **Fetch API support** - Replace Axios with native Fetch API for universal compatibility
+- **Custom fetch implementation** - Pass your own fetch function via `httpClient` option
+- **Browser and edge runtime support** - Works in browsers, Cloudflare Workers, Vercel Edge, Deno, and Node.js
+- **ES Module exports** - Proper ESM exports with subpath exports for `security`, `client`, `wsdl`, `http`, and `types`
+
+### Changes
+
+- Refactored `HttpClient` to use Fetch API instead of Axios
+- Refactored MTOM response parsing to use `Uint8Array` for binary data handling
+- Refactored `BasicAuthSecurity` to use `stringToBase64` helper for encoding
+- Refactored security XML handling to support async operations
+- Replaced `uuid` with `crypto.randomUUID()` for UUID generation
+- Replaced `assert` module with custom assertion function for universal compatibility
+- Updated stream handling in client with error handling and lock release
+- Added `eventemitter3` as a dependency for universal event emitter support
 
 ---
 
-# 0.1.0 / 2024-XX-XX (fetch-soap)
+## Forked from node-soap v1.6.0
 
-- [FORK] Forked from node-soap v1.6.0
-- [CHANGE] Renamed package to `fetch-soap`
-- [CHANGE] Updated package metadata and documentation
-- [GOAL] Replace Axios with Fetch API for universal compatibility
-- [GOAL] Remove Node.js-specific dependencies
-- [GOAL] Support browsers and edge runtimes
+The following is the history from node-soap up to the fork point. For the complete node-soap history, see the [node-soap repository](https://github.com/vpulim/node-soap/blob/master/History.md).
 
 ---
 
