@@ -8,12 +8,10 @@
   "dependencies": {
     "debug": "^4.4.3",
     "eventemitter3": "^5.0.1",
-    "formidable": "^3.5.4",
     "lodash": "^4.17.21",
     "sax": "^1.4.1",
     "strip-bom": "^3.0.0",
-    "whatwg-mimetype": "4.0.0",
-    "xml-crypto": "^6.1.2"
+    "whatwg-mimetype": "4.0.0"
   },
   "repository": {
     "type": "git",
@@ -52,7 +50,6 @@
     "@eslint/js": "^9.38.0",
     "@types/debug": "^4.1.12",
     "@types/eventemitter3": "^1.2.0",
-    "@types/formidable": "^3.4.6",
     "@types/lodash": "^4.17.20",
     "@types/node": "^14.0.0",
     "@types/sax": "^1.2.7",

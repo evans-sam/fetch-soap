@@ -300,7 +300,8 @@ export class HttpClient implements IHttpClient {
                   return reject(parseErr);
                 }
                 res.mtomResponseAttachments = multipartResponse;
-                const bodyStr = firstPart.body.toString(this.options.encoding || 'utf8');
+                const decoder = new TextDecoder(this.options.encoding || 'utf-8');
+                const bodyStr = decoder.decode(firstPart.body);
                 handleBody(bodyStr);
                 resolve(res);
               });

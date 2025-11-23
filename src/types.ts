@@ -132,7 +132,7 @@ export interface IOptions extends IWsdlBaseOptions {
 
 export interface IMTOMAttachments {
   parts: Array<{
-    body: Buffer;
+    body: Uint8Array;
     headers: { [key: string]: string };
   }>;
 }

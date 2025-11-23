@@ -121,52 +121,141 @@ export function xmlEscape(obj) {
   return obj;
 }
 
-export function parseMTOMResp(payload: Buffer, boundary: string, callback: (err?: Error, resp?: IMTOMAttachments) => void) {
-  return import('formidable')
-    .then(({ MultipartParser }) => {
-      const resp: IMTOMAttachments = {
-        parts: [],
-      };
-      let headerName = '';
-      let headerValue = '';
-      let data: Buffer;
-      let partIndex = 0;
-      const parser = new MultipartParser();
+/**
+ * Concatenate multiple Uint8Arrays into a single Uint8Array
+ */
+function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
+  const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  return result;
+}
 
-      parser.initWithBoundary(boundary);
-      parser.on('data', ({ name, buffer, start, end }) => {
-        switch (name) {
-          case 'partBegin':
-            resp.parts[partIndex] = {
-              body: null,
-              headers: {},
-            };
-            data = Buffer.from('');
-            break;
-          case 'headerField':
-            headerName = buffer.slice(start, end).toString();
-            break;
-          case 'headerValue':
-            headerValue = buffer.slice(start, end).toString();
-            break;
-          case 'headerEnd':
-            resp.parts[partIndex].headers[headerName.toLowerCase()] = headerValue;
-            break;
-          case 'partData':
-            data = Buffer.concat([data, buffer.slice(start, end)]);
-            break;
-          case 'partEnd':
-            resp.parts[partIndex].body = data;
-            partIndex++;
-            break;
+/**
+ * Find the index of a pattern in a Uint8Array
+ */
+function indexOfPattern(data: Uint8Array, pattern: Uint8Array, startIndex = 0): number {
+  for (let i = startIndex; i <= data.length - pattern.length; i++) {
+    let found = true;
+    for (let j = 0; j < pattern.length; j++) {
+      if (data[i + j] !== pattern[j]) {
+        found = false;
+        break;
+      }
+    }
+    if (found) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Parse MIME multipart response without formidable (browser-compatible)
+ * @param payload The response body as ArrayBuffer or Uint8Array
+ * @param boundary The multipart boundary string
+ * @param callback Callback with parsed attachments
+ */
+export function parseMTOMResp(
+  payload: ArrayBuffer | Uint8Array,
+  boundary: string,
+  callback: (err?: Error, resp?: IMTOMAttachments) => void,
+) {
+  try {
+    const data = payload instanceof Uint8Array ? payload : new Uint8Array(payload);
+    const textDecoder = new TextDecoder('utf-8');
+    const resp: IMTOMAttachments = { parts: [] };
+
+    // The boundary delimiter is: CRLF + "--" + boundary
+    // But the first boundary may not have a leading CRLF
+    const boundaryBytes = new TextEncoder().encode('--' + boundary);
+    const crlfBytes = new Uint8Array([0x0d, 0x0a]); // \r\n
+    const doubleCrlfBytes = new Uint8Array([0x0d, 0x0a, 0x0d, 0x0a]); // \r\n\r\n
+
+    // Find the first boundary
+    let pos = indexOfPattern(data, boundaryBytes, 0);
+    if (pos === -1) {
+      return callback(new Error('Could not find initial boundary'));
+    }
+
+    // Move past the boundary and CRLF
+    pos += boundaryBytes.length;
+    if (data[pos] === 0x0d && data[pos + 1] === 0x0a) {
+      pos += 2; // skip CRLF after boundary
+    }
+
+    while (pos < data.length) {
+      // Check for end boundary (--boundary--)
+      if (data[pos] === 0x2d && data[pos + 1] === 0x2d) {
+        break; // End of multipart
+      }
+
+      // Find the end of headers (double CRLF)
+      const headersEnd = indexOfPattern(data, doubleCrlfBytes, pos);
+      if (headersEnd === -1) {
+        return callback(new Error('Could not find end of headers'));
+      }
+
+      // Parse headers
+      const headersData = data.slice(pos, headersEnd);
+      const headersText = textDecoder.decode(headersData);
+      const headers: { [key: string]: string } = {};
+
+      for (const line of headersText.split('\r\n')) {
+        const colonIndex = line.indexOf(':');
+        if (colonIndex > 0) {
+          const name = line.substring(0, colonIndex).trim().toLowerCase();
+          const value = line.substring(colonIndex + 1).trim();
+          headers[name] = value;
         }
-      });
+      }
 
-      parser.write(payload);
+      // Move past headers and double CRLF
+      const bodyStart = headersEnd + doubleCrlfBytes.length;
 
-      return callback(null, resp);
-    })
-    .catch(callback);
+      // Find the next boundary
+      const nextBoundaryPos = indexOfPattern(data, boundaryBytes, bodyStart);
+      let bodyEnd: number;
+
+      if (nextBoundaryPos === -1) {
+        // No more boundaries, take rest as body
+        bodyEnd = data.length;
+      } else {
+        // Body ends before the CRLF that precedes the boundary
+        bodyEnd = nextBoundaryPos;
+        // Remove trailing CRLF before boundary if present
+        if (bodyEnd >= 2 && data[bodyEnd - 2] === 0x0d && data[bodyEnd - 1] === 0x0a) {
+          bodyEnd -= 2;
+        }
+      }
+
+      // Extract body
+      const body = data.slice(bodyStart, bodyEnd);
+      resp.parts.push({ body, headers });
+
+      // Move to next part
+      if (nextBoundaryPos === -1) {
+        break;
+      }
+      pos = nextBoundaryPos + boundaryBytes.length;
+
+      // Skip CRLF after boundary or check for end marker (--)
+      if (data[pos] === 0x2d && data[pos + 1] === 0x2d) {
+        break; // End of multipart
+      }
+      if (data[pos] === 0x0d && data[pos + 1] === 0x0a) {
+        pos += 2;
+      }
+    }
+
+    callback(undefined, resp);
+  } catch (err) {
+    callback(err instanceof Error ? err : new Error(String(err)));
+  }
 }
 
 class DefaultWSDLCache implements IWSDLCache {
