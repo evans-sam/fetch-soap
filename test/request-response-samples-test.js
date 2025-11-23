@@ -10,6 +10,8 @@ var jsdiff = require('diff');
 require('colors');
 var soap = require('../');
 var WSSecurity = require('../lib/security').WSSecurity;
+var testHelpers = require('./test-helpers');
+var mockHttpClient = testHelpers.createMockHttpClient(__dirname);
 var server;
 var port;
 var tests = glob
@@ -180,9 +182,11 @@ function generateTest(name, methodName, wsdlPath, headerJSON, securityJSON, requ
     }
     requestContext.doneHandler = done;
     requestContext.responseHttpHeaders = responseHttpHeaders;
+    // Add mockHttpClient to options for WSDL loading
+    var opts = Object.assign({}, wsdlOptions, { httpClient: mockHttpClient });
     soap.createClient(
-      wsdlPath,
-      wsdlOptions,
+      testHelpers.toTestUrl(wsdlPath),
+      opts,
       function (err, client) {
         if (headerJSON) {
           for (var headerKey in headerJSON) {

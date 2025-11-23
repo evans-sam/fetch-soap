@@ -1,6 +1,5 @@
-import * as req from 'axios';
-import { ReadStream } from 'fs';
 import { WSDL } from './wsdl';
+import type { IHttpResponse } from './http';
 
 export interface IHeaders {
   [k: string]: any;
@@ -11,8 +10,8 @@ export interface IExOptions {
 }
 
 export interface IHttpClient {
-  request(rurl: string, data: any, callback: (error: any, res?: any, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): req.AxiosPromise;
-  requestStream?(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): req.AxiosPromise<ReadStream>;
+  request(rurl: string, data: any, callback: (error: any, res?: IHttpResponse, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): Promise<IHttpResponse>;
+  requestStream?(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): Promise<IHttpResponse>;
 }
 
 /** @deprecated use SoapMethod */
@@ -26,8 +25,6 @@ export type SoapMethod = (
 ) => void;
 
 export type SoapMethodAsync = (args: any, options?: any, extraHeaders?: any) => Promise<[any, any, any, any, IMTOMAttachments?]>;
-
-export type ISoapServiceMethod = (args: any, callback?: (data: any) => void, headers?: any, req?: any, res?: any, sender?: any) => any;
 
 // SOAP Fault 1.1 & 1.2
 export interface ISoapFaultError {
@@ -59,20 +56,10 @@ export type Security = ISecurity;
 export interface ISecurity {
   addOptions?(options: any): void;
   toXML?(): string;
+  /** Async version of toXML, required for security implementations using Web Crypto API */
+  toXMLAsync?(): Promise<string>;
   addHeaders?(headers: IHeaders): void;
   postProcess?(xml, envelopeKey): string;
-}
-
-export interface IServicePort {
-  [methodName: string]: ISoapServiceMethod;
-}
-
-export interface IService {
-  [portName: string]: IServicePort;
-}
-
-export interface IServices {
-  [serviceName: string]: IService;
 }
 
 export interface IXmlAttribute {
@@ -126,8 +113,8 @@ export interface IOptions extends IWsdlBaseOptions {
   envelopeSoapUrl?: string;
   /** provide your own http client that implements request(rurl, data, callback, exheaders, exoptions) */
   httpClient?: IHttpClient;
-  /** override the request module. */
-  request?: req.AxiosInstance;
+  /** provide a custom fetch implementation (for testing or special environments) */
+  fetch?: typeof fetch;
   stream?: boolean;
   // allows returning the underlying saxStream that parse the SOAP XML response
   returnSaxStream?: boolean;
@@ -143,28 +130,9 @@ export interface IOptions extends IWsdlBaseOptions {
   encoding?: BufferEncoding;
 }
 
-export interface IOneWayOptions {
-  responseCode?: number;
-  emptyBody?: boolean;
-}
-
-export interface IServerOptions extends IWsdlBaseOptions {
-  path: string | RegExp;
-  services: IServices;
-  xml?: string;
-  uri?: string;
-  callback?: (err: any, res: any) => void;
-  /** suppress the full stack trace for error messages. */
-  suppressStack?: boolean;
-  oneWay?: IOneWayOptions;
-  /** A boolean for controlling chunked transfer encoding in response. Some client (such as Windows 10's MDM enrollment SOAP client) is sensitive to transfer-encoding mode and can't accept chunked response. This option let user disable chunked transfer encoding for such a client. Default to true for backward compatibility. */
-  enableChunkedEncoding?: boolean;
-  envelopeKey?: string;
-}
-
 export interface IMTOMAttachments {
   parts: Array<{
-    body: Buffer;
+    body: Uint8Array;
     headers: { [key: string]: string };
   }>;
 }

@@ -3,25 +3,60 @@
  * MIT Licensed
  */
 
-import * as req from 'axios';
-import { NtlmClient } from 'axios-ntlm';
-import { randomUUID } from 'crypto';
 import debugBuilder from 'debug';
-import { ReadStream } from 'fs';
-import * as url from 'url';
 import MIMEType from 'whatwg-mimetype';
-import { gzipSync } from 'zlib';
 import { IExOptions, IHeaders, IHttpClient, IOptions } from './types';
 import { parseMTOMResp } from './utils';
 
-const debug = debugBuilder('node-soap');
+const debug = debugBuilder('fetch-soap');
 import { version } from '../package.json';
+
+const textEncoder = new TextEncoder();
+
+/**
+ * Helper to concatenate multiple Uint8Arrays into one
+ */
+function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
+  const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  return result;
+}
 
 export interface IAttachment {
   name: string;
   contentId: string;
   mimetype: string;
-  body: NodeJS.ReadableStream;
+  /** The attachment body as a stream or async iterable of bytes */
+  body: ReadableStream<Uint8Array> | AsyncIterable<Uint8Array>;
+}
+
+/**
+ * Response interface compatible with fetch Response
+ */
+export interface IHttpResponse {
+  status: number;
+  statusText: string;
+  headers: Headers | Record<string, string>;
+  data: any;
+  /** Request headers that were sent */
+  requestHeaders?: IHeaders;
+  /** MTOM attachments parsed from multipart response */
+  mtomResponseAttachments?: any;
+}
+
+/**
+ * Internal request options for fetch
+ */
+interface IFetchRequestOptions {
+  url: string;
+  method: string;
+  headers: IHeaders;
+  body?: string | Uint8Array;
 }
 
 /**
@@ -32,13 +67,14 @@ export interface IAttachment {
  * @constructor
  */
 export class HttpClient implements IHttpClient {
-  private _request: req.AxiosInstance;
   private options: IOptions;
+  public customFetch?: typeof fetch;
 
   constructor(options?: IOptions) {
     options = options || {};
     this.options = options;
-    this._request = options.request || req.create();
+    // Allow custom fetch implementation for testing or special environments
+    this.customFetch = options.fetch as typeof fetch;
   }
 
   /**
@@ -47,16 +83,16 @@ export class HttpClient implements IHttpClient {
    * @param {Object|String} data The payload
    * @param {Object} exheaders Extra http headers
    * @param {Object} exoptions Extra options
-   * @returns {Object} The http request object for the `request` module
+   * @returns {Object} The http request object for fetch
    */
-  public buildRequest(rurl: string, data: any, exheaders?: IHeaders, exoptions: IExOptions = {}): any {
-    const curl = url.parse(rurl);
+  public buildRequest(rurl: string, data: any, exheaders?: IHeaders, exoptions: IExOptions = {}): IFetchRequestOptions {
+    const curl = new URL(rurl);
     const method = data ? 'POST' : 'GET';
 
     const host = curl.hostname;
-    const port = parseInt(curl.port, 10);
+    const port = parseInt(curl.port || '', 10);
     const headers: IHeaders = {
-      'User-Agent': 'node-soap/' + version,
+      'User-Agent': 'fetch-soap/' + version,
       'Accept': 'text/html,application/xhtml+xml,application/xml,text/xml;q=0.9,*/*;q=0.8',
       'Accept-Encoding': 'none',
       'Accept-Charset': 'utf-8',
@@ -69,7 +105,7 @@ export class HttpClient implements IHttpClient {
     const attachments: IAttachment[] = _attachments || [];
 
     if (typeof data === 'string' && attachments.length === 0 && !exoptions.forceMTOM) {
-      headers['Content-Length'] = Buffer.byteLength(data, 'utf8');
+      headers['Content-Length'] = String(new TextEncoder().encode(data).length);
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
 
@@ -78,26 +114,23 @@ export class HttpClient implements IHttpClient {
       headers[attr] = exheaders[attr];
     }
 
-    const options: req.AxiosRequestConfig = {
+    const options: IFetchRequestOptions = {
       url: curl.href,
       method: method,
       headers: headers,
-      transformResponse: (data) => data,
     };
-    if (!exoptions.ntlm) {
-      options.validateStatus = null;
-    }
+
     if (exoptions.forceMTOM || attachments.length > 0) {
-      const start = randomUUID();
+      const start = crypto.randomUUID();
       let action = null;
-      if (headers['Content-Type'].indexOf('action') > -1) {
+      if (headers['Content-Type'] && headers['Content-Type'].indexOf('action') > -1) {
         for (const ct of headers['Content-Type'].split('; ')) {
           if (ct.indexOf('action') > -1) {
             action = ct;
           }
         }
       }
-      const boundary = randomUUID();
+      const boundary = crypto.randomUUID();
       headers['Content-Type'] = 'multipart/related; type="application/xop+xml"; start="<' + start + '>"; start-info="text/xml"; boundary=' + boundary;
       if (action) {
         headers['Content-Type'] = headers['Content-Type'] + '; ' + action;
@@ -119,38 +152,34 @@ export class HttpClient implements IHttpClient {
           'body': attachment.body,
         });
       });
-      options.data = [Buffer.from(`--${boundary}\r\n`)];
+      const dataParts: Uint8Array[] = [textEncoder.encode(`--${boundary}\r\n`)];
 
       let multipartCount = 0;
       multipart.forEach((part) => {
         Object.keys(part).forEach((key) => {
           if (key !== 'body') {
-            options.data.push(Buffer.from(`${key}: ${part[key]}\r\n`));
+            dataParts.push(textEncoder.encode(`${key}: ${part[key]}\r\n`));
           }
         });
-        options.data.push(Buffer.from('\r\n'), Buffer.from(part.body), Buffer.from(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
+        dataParts.push(
+          textEncoder.encode('\r\n'),
+          textEncoder.encode(part.body),
+          textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`),
+        );
         multipartCount++;
       });
-      options.data = Buffer.concat(options.data);
+      options.body = concatUint8Arrays(dataParts);
     } else {
-      options.data = data;
-    }
-
-    if (exoptions.forceGzip) {
-      options.decompress = true;
-      options.data = gzipSync(options.data);
-      options.headers['Accept-Encoding'] = 'gzip,deflate';
-      options.headers['Content-Encoding'] = 'gzip';
+      options.body = data;
     }
 
     for (const attr in newExoptions) {
       if (mergeOptions.indexOf(attr) !== -1) {
         for (const header in exoptions[attr]) {
-          options[attr][header] = exoptions[attr][header];
+          options.headers[header] = exoptions[attr][header];
         }
-      } else {
-        options[attr] = exoptions[attr];
       }
+      // Skip options that are not relevant for fetch
     }
     debug('Http request: %j', options);
     return options;
@@ -158,12 +187,10 @@ export class HttpClient implements IHttpClient {
 
   /**
    * Handle the http response
-   * @param {Object} The req object
-   * @param {Object} res The res object
    * @param {Object} body The http body
-   * @param {Object} The parsed body
+   * @returns {string} Processed body
    */
-  public handleResponse(req: req.AxiosPromise, res: req.AxiosResponse, body: any) {
+  public handleResponse(body: any): any {
     debug('Http response body: %j', body);
     if (typeof body === 'string') {
       // Remove any extra characters that appear before or after the SOAP envelope.
@@ -176,78 +203,156 @@ export class HttpClient implements IHttpClient {
     return body;
   }
 
-  public request(rurl: string, data: any, callback: (error: any, res?: any, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions) {
+  /**
+   * Convert fetch Headers to plain object
+   */
+  private headersToObject(headers: Headers): Record<string, string> {
+    const obj: Record<string, string> = {};
+    headers.forEach((value, key) => {
+      obj[key.toLowerCase()] = value;
+    });
+    return obj;
+  }
+
+  public request(
+    rurl: string,
+    data: any,
+    callback: (error: any, res?: IHttpResponse, body?: any) => any,
+    exheaders?: IHeaders,
+    exoptions?: IExOptions,
+  ): Promise<IHttpResponse> {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
-    let req: req.AxiosPromise;
+    const fetchFn = this.customFetch || fetch;
+
+    // Check for NTLM - no longer supported
     if (exoptions !== undefined && exoptions.ntlm) {
-      const ntlmReq = NtlmClient({
-        username: exoptions.username,
-        password: exoptions.password,
-        workstation: exoptions.workstation || '',
-        domain: exoptions.domain || '',
-      });
-      req = ntlmReq(options);
-    } else {
-      if (this.options.parseReponseAttachments) {
-        options.responseType = 'arraybuffer';
-        options.responseEncoding = 'binary';
-      }
-      req = this._request(options);
+      const error = new Error('NTLM authentication is not supported. NTLM requires Node.js-specific TCP socket handling.');
+      queueMicrotask(() => callback(error));
+      return Promise.reject(error);
     }
-    //eslint-disable-next-line @typescript-eslint/no-this-alias
-    const _this = this;
-    req.then(
-      (res) => {
+
+    const fetchOptions: RequestInit = {
+      method: options.method,
+      headers: options.headers,
+      body: options.body as BodyInit,
+    };
+
+    // Add timeout support via AbortController
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    if (exoptions?.timeout) {
+      timeoutId = setTimeout(() => controller.abort(), exoptions.timeout);
+      fetchOptions.signal = controller.signal;
+    }
+
+    const responsePromise = fetchFn(options.url, fetchOptions)
+      .then(async (response) => {
+        if (timeoutId) clearTimeout(timeoutId);
+
+        const headersObj = this.headersToObject(response.headers);
+
+        // Determine how to read the response body
+        let responseData: any;
+        if (this.options.parseReponseAttachments) {
+          responseData = await response.arrayBuffer();
+        } else {
+          responseData = await response.text();
+        }
+
+        const res: IHttpResponse = {
+          status: response.status,
+          statusText: response.statusText,
+          headers: headersObj,
+          data: responseData,
+          requestHeaders: options.headers,
+        };
+
         const handleBody = (body?: string) => {
-          res.data = this.handleResponse(req, res, body || res.data);
+          res.data = this.handleResponse(body !== undefined ? body : res.data);
           callback(null, res, res.data);
           return res;
         };
 
-        if (_this.options.parseReponseAttachments) {
-          const isMultipartResp = res.headers['content-type'] && res.headers['content-type'].toLowerCase().indexOf('multipart/related') > -1;
+        if (this.options.parseReponseAttachments) {
+          const contentType = headersObj['content-type'];
+          const isMultipartResp = contentType && contentType.toLowerCase().indexOf('multipart/related') > -1;
           if (isMultipartResp) {
             let boundary;
-            const parsedContentType = MIMEType.parse(res.headers['content-type']);
+            const parsedContentType = MIMEType.parse(contentType);
             if (parsedContentType) {
               boundary = parsedContentType.parameters.get('boundary');
             }
             if (!boundary) {
-              return callback(new Error('Missing boundary from content-type'));
+              const err = new Error('Missing boundary from content-type');
+              callback(err);
+              throw err;
             }
-            return parseMTOMResp(res.data, boundary, (err, multipartResponse) => {
-              if (err) {
-                return callback(err);
-              }
-              // first part is the soap response
-              const firstPart = multipartResponse.parts.shift();
-              if (!firstPart || !firstPart.body) {
-                return callback(new Error('Cannot parse multipart response'));
-              }
-              (res as any).mtomResponseAttachments = multipartResponse;
-              return handleBody(firstPart.body.toString(_this.options.encoding || 'utf8'));
+            return new Promise<IHttpResponse>((resolve, reject) => {
+              parseMTOMResp(responseData, boundary, (err, multipartResponse) => {
+                if (err) {
+                  callback(err);
+                  return reject(err);
+                }
+                // first part is the soap response
+                const firstPart = multipartResponse.parts.shift();
+                if (!firstPart || !firstPart.body) {
+                  const parseErr = new Error('Cannot parse multipart response');
+                  callback(parseErr);
+                  return reject(parseErr);
+                }
+                res.mtomResponseAttachments = multipartResponse;
+                const decoder = new TextDecoder(this.options.encoding || 'utf-8');
+                const bodyStr = decoder.decode(firstPart.body);
+                handleBody(bodyStr);
+                resolve(res);
+              });
             });
           } else {
-            return handleBody(res.data.toString(_this.options.encoding || 'utf8'));
+            // Convert ArrayBuffer to string
+            const decoder = new TextDecoder(this.options.encoding || 'utf-8');
+            const bodyStr = decoder.decode(responseData);
+            return handleBody(bodyStr);
           }
         } else {
           return handleBody();
         }
-      },
-      (err) => {
-        return callback(err);
-      },
-    );
-    return req;
+      })
+      .catch((err) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        callback(err);
+        throw err;
+      });
+
+    return responsePromise;
   }
 
-  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions): req.AxiosPromise<ReadStream> {
+  public requestStream(
+    rurl: string,
+    data: any,
+    exheaders?: IHeaders,
+    exoptions?: IExOptions,
+  ): Promise<IHttpResponse> {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
-    options.responseType = 'stream';
-    const req = this._request(options).then((res) => {
-      res.data = this.handleResponse(req, res, res.data);
+    const fetchFn = this.customFetch || fetch;
+
+    const fetchOptions: RequestInit = {
+      method: options.method,
+      headers: options.headers,
+      body: options.body as BodyInit,
+    };
+
+    return fetchFn(options.url, fetchOptions).then((response) => {
+      const headersObj = this.headersToObject(response.headers);
+
+      const res: IHttpResponse = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: headersObj,
+        data: response.body, // Return the ReadableStream directly
+        requestHeaders: options.headers,
+      };
+
       return res;
     });
-    return req;
   }
 }

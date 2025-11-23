@@ -5,16 +5,14 @@
 
 import { Client } from './client';
 import * as _security from './security';
-import { Server, ServerType } from './server';
-import { IOptions, IServerOptions, IServices, IWSDLCache } from './types';
+import { IOptions, IWSDLCache } from './types';
 import { wsdlCacheSingleton } from './utils';
 import { open_wsdl, WSDL } from './wsdl';
 
 export const security = _security;
 export { Client } from './client';
 export { HttpClient } from './http';
-export { BasicAuthSecurity, BearerSecurity, ClientSSLSecurity, ClientSSLSecurityPFX, NTLMSecurity, WSSecurity, WSSecurityCert, WSSecurityPlusCert, WSSecurityCertWithToken } from './security';
-export { Server } from './server';
+export { BasicAuthSecurity, BearerSecurity, WSSecurity } from './security';
 export { passwordDigest } from './utils';
 export * from './types';
 export { WSDL } from './wsdl';
@@ -31,7 +29,7 @@ function getFromCache(key: string, cache: IWSDLCache, load: (cb: WSDLCallback) =
       callback(null, result);
     });
   } else {
-    process.nextTick(() => {
+    queueMicrotask(() => {
       callback(null, cache.get(key));
     });
   }
@@ -99,34 +97,4 @@ export function createClientAsync(url: string, options?: IOptions, endpoint?: st
       endpoint,
     );
   });
-}
-
-export function listen(server: ServerType, path: string | RegExp, services: IServices, wsdl: string, callback?: (err: any, res: any) => void): Server;
-export function listen(server: ServerType, options: IServerOptions): Server;
-export function listen(server: ServerType, p2: string | RegExp | IServerOptions, services?: IServices, xml?: string, callback?: (err: any, res: any) => void): Server {
-  let options: IServerOptions;
-  let path: string | RegExp;
-  let uri = '';
-
-  if (typeof p2 === 'object' && !(p2 instanceof RegExp)) {
-    // p2 is options
-    // server, options
-    options = p2;
-    path = options.path;
-    services = options.services;
-    xml = options.xml;
-    uri = options.uri;
-  } else {
-    // p2 is path
-    // server, path, services, wsdl
-    path = p2;
-    options = {
-      path: p2,
-      services: services,
-      callback: callback,
-    };
-  }
-
-  const wsdl = new WSDL(xml || services, uri, options);
-  return new Server(server, path, services, wsdl, options);
 }

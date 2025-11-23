@@ -1,55 +1,52 @@
 # Contribution Guidelines
 
-Thank you for your support! node-soap wouldn't be where it is today without contributors like you who are willing to take the time to improve it for everyone else.
+Thank you for your interest in contributing to fetch-soap! This project is a fork of node-soap, focused on creating a universal SOAP client that works in browsers, edge runtimes, and Node.js.
 
-Because SOAP Web Services can differ amongst implementations, there is high risk involved in making changes. What works for your WSDL, might not work with another. It is therefore _essential_ that contributors to node-soap adhere to these guidelines.
+## Project Goals
+
+When contributing, please keep these goals in mind:
+
+1. **Universal compatibility**: Code should work in browsers, edge runtimes (Cloudflare Workers, Vercel Edge, Deno), and Node.js
+2. **No Node.js-specific dependencies**: Avoid `fs`, `http`, `crypto`, and other Node.js built-in modules
+3. **Use Fetch API**: HTTP requests should use the Fetch API, not Axios or other Node.js HTTP libraries
+4. **Maintain API compatibility**: Where possible, maintain compatibility with the node-soap API
 
 ## Submitting a Pull Request
 
-- Pull Requests **must** be rebased to the latest version of `master`. If you just forked a repo for a PR it is already up to date. In case you forked some time ago you want to rebase it to avoid any merge conflicts:
-  ```bash
-  # set remote origin of your forked repo to original one
-  git remote set-url origin git@github.com:vpulim/node-soap.git
-  git fetch origin
-  git rebase origin/master
-  # set origin back to your forked repo
-  git remote set-url origin git@github.com:${USER_NAME}/node-soap.git
-  git push --force-with-lease
-  ```
-- Pull Requests **must have accompanying tests**. Your chances of getting the PR merged are very low if you don't provide any tests.
-- Pull Requests must have passing GitHub CI/CD pipelines.
-- Please use descriptive commit messages.
+- Pull Requests **must** be rebased to the latest version of `master`
+- Pull Requests **must have accompanying tests**
+- Pull Requests must have passing GitHub CI/CD pipelines
+- Please use descriptive commit messages:
   - Use the imperative, present tense: "change" not "changed" nor "changes"
-  - Do capitalize the first letter
+  - Capitalize the first letter
   - Do not end the description with a period (.)
 
 ## Making Changes
 
-- Any and all pull requests to change (see the [documentation](https://github.com/vpulim/node-soap/blob/master/Readme.md) or typos are welcome!
-- Any WSDL checked in should be as small and as generic as possible. This is to keep the size of the codebase from growing too large and to keep the reason for submitting the WSDL clear I.E. if the WSDL was submitted because attributes were not being parsed on response XML, then it would be appropriate to submit a WSDL that defines a response with attributes _and nothing else_. If you find an issue with the parser not being able to handle large WSDLs, then it would be appropriate to submit a large WSDL to recreate the issue with.
-- If your Pull Request is WSDL related:
-  1. Make your WSDL as generic as possible to recreate the issue
-  2. Add the WSDL to the appropriate path in test/wsdl.
-  3. Commit your changes to a feature branch within your fork.
-  4. Issue a pull request.
+### Environment Compatibility
 
-- If your Pull Request is client related:
-  1. Capture the request / response XML via client.lastRequest and client.lastResponse as well as the WSDL.
-  2. Make the WSDL, request, and response XML as generic as possible.
-  3. Only include the messages or operations that are having issues.
-  4. Add the appropriate files to test/request-response-samples (see the [README](https://github.com/vpulim/node-soap/blob/master/Readme.md) therein)
-  5. Commit your changes to a feature branch within your fork.
-  6. Issue a pull request
+Before submitting code, verify it works in:
 
-- If your Pull Request is neither WSDL nor client related:
-  1. Provide a test of some form in an appropriate \*-test.js file under test/
-  2. Commit your changes to a feature branch within your fork.
-  3. Issue a pull request.
+- Node.js (v18+)
+- Modern browsers (check for browser-specific APIs)
+- Edge runtimes (no Node.js built-ins)
+
+### Testing
+
+- Add tests for any new functionality
+- Ensure all existing tests pass
+- If your change affects browser/edge compatibility, note this in the PR
+
+### Code Style
+
+- Run `npm run lint` before submitting
+- Run `npm run format` to format code with Prettier
+- TypeScript is preferred for new code
 
 ## Issue Expiration
 
-Any pull request filed is subject to an expiration date. We will close any open Pull Request that has not received a response within a 2 week timeframe. The goal is not to sweep dirt under the rug, but to keep the focus on merging in pull requests. Please provide pull requests that meet the above criteria wherever possible.
+Pull requests that have not received a response within 2 weeks may be closed. This helps keep the focus on active contributions.
 
-## Other ways you can contribute
+## Questions?
 
-Please add response, request, and WSDL files to test/wsdl, and test/request-response-samples (see the [README](https://github.com/vpulim/node-soap/blob/master/test/request-response-samples/README.md) therein). Doing so documents behavior and reduces the likelihood that bugs will be introduced by future pull requests.
+If you have questions about contributing, please open an issue for discussion.

@@ -3,20 +3,37 @@
  * MIT Licensed
  */
 
-import * as assert from 'assert';
-import { AxiosResponseHeaders, RawAxiosResponseHeaders } from 'axios';
-import { randomUUID } from 'crypto';
 import debugBuilder from 'debug';
-import { EventEmitter } from 'events';
-import getStream from 'get-stream';
+import EventEmitter from 'eventemitter3';
 import * as _ from 'lodash';
-import { HttpClient } from './http';
+import { HttpClient, IHttpResponse } from './http';
 import { IHeaders, IHttpClient, IMTOMAttachments, IOptions, ISecurity, SoapMethod, SoapMethodAsync } from './types';
-import { findPrefix } from './utils';
+import { assert, findPrefix } from './utils';
 import { WSDL } from './wsdl';
 import { IPort, OperationElement, ServiceElement } from './wsdl/elements';
 
-const debug = debugBuilder('node-soap');
+/**
+ * Read a ReadableStream to string
+ */
+async function streamToString(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let result = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      result += decoder.decode(value, { stream: true });
+    }
+    result += decoder.decode(); // flush
+    return result;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+const debug = debugBuilder('fetch-soap');
 
 const nonIdentifierChars = /[^a-z$_0-9]/i;
 
@@ -51,7 +68,7 @@ export class Client extends EventEmitter {
   public lastEndpoint?: string;
   public lastRequestHeaders?: any;
   public lastResponse?: any;
-  public lastResponseHeaders?: AxiosResponseHeaders | RawAxiosResponseHeaders;
+  public lastResponseHeaders?: Record<string, string>;
   public lastElapsedTime?: number;
   public lastResponseAttachments: IMTOMAttachments;
 
@@ -316,6 +333,19 @@ export class Client extends EventEmitter {
     };
     let xmlnsSoap = 'xmlns:' + envelopeKey + '="' + envelopeSoapUrl + '"';
 
+    // Define eid early so it can be used in finish and parseSync
+    options = options || {};
+    const eid: string = options.exchangeId || crypto.randomUUID();
+
+    // Define tryJSONparse early so it can be used in parseSync
+    const tryJSONparse = (body) => {
+      try {
+        return JSON.parse(body);
+      } catch {
+        return undefined;
+      }
+    };
+
     const finish = (obj, body, response) => {
       let result;
 
@@ -398,8 +428,6 @@ export class Client extends EventEmitter {
       headers.SOAPAction = '"' + soapAction + '"';
     }
 
-    options = options || {};
-
     // Allow the security object to add headers
     if (this.security && this.security.addHeaders) {
       this.security.addHeaders(headers);
@@ -409,11 +437,11 @@ export class Client extends EventEmitter {
     }
 
     if (style === 'rpc' && (input.parts || input.name === 'element' || args === null)) {
-      assert.ok(!style || style === 'rpc', 'invalid message definition for document style binding');
+      assert(!style || style === 'rpc', 'invalid message definition for document style binding');
       message = this.wsdl.objectToRpcXML(name, args, alias, ns, input.name !== 'element');
       if (method.inputSoap === 'encoded') encoding = 'soap:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" ';
     } else {
-      assert.ok(!style || style === 'document', 'invalid message definition for rpc style binding');
+      assert(!style || style === 'document', 'invalid message definition for rpc style binding');
       // pass `input.$lookupType` if `input.$type` could not be found
       message = this.wsdl.objectToDocumentXML(input.$name, args, input.targetNSAlias, input.targetNamespace, input.$type || input.$lookupType);
     }
@@ -431,180 +459,186 @@ export class Client extends EventEmitter {
         .join(' ');
     }
 
-    xml =
-      '<?xml version="1.0" encoding="utf-8"?>' +
-      '<' +
-      envelopeKey +
-      ':Envelope ' +
-      xmlnsSoap +
-      ' ' +
-      'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
-      encoding +
-      this.wsdl.xmlnsInEnvelope +
-      '>' +
-      (decodedHeaders || (this.security && this.security.toXML())
-        ? '<' +
-          envelopeKey +
-          ':Header' +
-          (this.wsdl.xmlnsInHeader ? ' ' + this.wsdl.xmlnsInHeader : '') +
-          '>' +
-          (decodedHeaders ? decodedHeaders : '') +
-          (this.security && !this.security.postProcess ? this.security.toXML() : '') +
-          '</' +
-          envelopeKey +
-          ':Header>'
-        : '') +
-      '<' +
-      envelopeKey +
-      ':Body' +
-      (this.bodyAttributes ? this.bodyAttributes.join(' ') : '') +
-      '>' +
-      message +
-      '</' +
-      envelopeKey +
-      ':Body>' +
-      '</' +
-      envelopeKey +
-      ':Envelope>';
+    // Determine if we need async security XML generation
+    const needsAsyncSecurity = this.security && !this.security.postProcess && this.security.toXMLAsync;
 
-    if (this.security && this.security.postProcess) {
-      xml = this.security.postProcess(xml, envelopeKey);
-    }
-
-    if (options && options.postProcess) {
-      xml = options.postProcess(xml);
-    }
-
-    this.lastMessage = message;
-    this.lastRequest = xml;
-    this.lastEndpoint = location;
-
-    const eid: string = options.exchangeId || randomUUID();
-
-    this.emit('message', message, eid);
-    this.emit('request', xml, eid);
-
-    // Add extra headers
-    if (this.httpHeaders === null) {
-      headers = {};
-    } else {
-      for (const header in this.httpHeaders) {
-        headers[header] = this.httpHeaders[header];
+    // Get security XML synchronously if possible
+    const getSecurityXmlSync = (): string => {
+      if (!this.security || this.security.postProcess) {
+        return '';
       }
-      for (const attr in extraHeaders) {
-        headers[attr] = extraHeaders[attr];
+      if (this.security.toXML) {
+        return this.security.toXML();
       }
-    }
-
-    const tryJSONparse = (body) => {
-      try {
-        return JSON.parse(body);
-      } catch {
-        return undefined;
-      }
+      return '';
     };
 
-    if (this.streamAllowed && typeof this.httpClient.requestStream === 'function') {
-      callback = _.once(callback);
-      const startTime = Date.now();
-      const onError = (err) => {
-        this.lastResponse = null;
-        this.lastResponseHeaders = null;
-        this.lastElapsedTime = null;
-        this.lastRequestHeaders = err.config && err.config.headers;
-        this.emit('response', null, null, eid);
-        if (this.returnSaxStream || !err.response || !err.response.data) {
+    // Get security XML asynchronously (only when toXMLAsync exists)
+    const getSecurityXmlAsync = (): Promise<string> => {
+      if (this.security && !this.security.postProcess && this.security.toXMLAsync) {
+        return this.security.toXMLAsync();
+      }
+      return Promise.resolve(getSecurityXmlSync());
+    };
+
+    // Build and send the request
+    const buildAndSendRequest = (securityXml: string) => {
+      // Only include header if there's actual content (decodedHeaders or non-empty securityXml)
+      const hasHeaderContent = decodedHeaders || securityXml;
+
+      xml =
+        '<?xml version="1.0" encoding="utf-8"?>' +
+        '<' +
+        envelopeKey +
+        ':Envelope ' +
+        xmlnsSoap +
+        ' ' +
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
+        encoding +
+        this.wsdl.xmlnsInEnvelope +
+        '>' +
+        (hasHeaderContent
+          ? '<' +
+            envelopeKey +
+            ':Header' +
+            (this.wsdl.xmlnsInHeader ? ' ' + this.wsdl.xmlnsInHeader : '') +
+            '>' +
+            (decodedHeaders ? decodedHeaders : '') +
+            securityXml +
+            '</' +
+            envelopeKey +
+            ':Header>'
+          : '') +
+        '<' +
+        envelopeKey +
+        ':Body' +
+        (this.bodyAttributes ? this.bodyAttributes.join(' ') : '') +
+        '>' +
+        message +
+        '</' +
+        envelopeKey +
+        ':Body>' +
+        '</' +
+        envelopeKey +
+        ':Envelope>';
+
+      if (this.security && this.security.postProcess) {
+        xml = this.security.postProcess(xml, envelopeKey);
+      }
+
+      if (options && options.postProcess) {
+        xml = options.postProcess(xml);
+      }
+
+      this.lastMessage = message;
+      this.lastRequest = xml;
+      this.lastEndpoint = location;
+
+      this.emit('message', message, eid);
+      this.emit('request', xml, eid);
+
+      // Add extra headers
+      if (this.httpHeaders === null) {
+        headers = {};
+      } else {
+        for (const header in this.httpHeaders) {
+          headers[header] = this.httpHeaders[header];
+        }
+        for (const attr in extraHeaders) {
+          headers[attr] = extraHeaders[attr];
+        }
+      }
+
+      if (this.streamAllowed && typeof this.httpClient.requestStream === 'function') {
+        callback = _.once(callback);
+        const startTime = Date.now();
+        const onError = (err) => {
+          this.lastResponse = null;
+          this.lastResponseHeaders = null;
+          this.lastElapsedTime = null;
+          this.lastRequestHeaders = err.requestHeaders;
+          this.emit('response', null, null, eid);
           callback(err, undefined, undefined, undefined, xml);
-        } else {
-          err.response.data.on('close', () => {
-            callback(err, undefined, undefined, undefined, xml);
-          });
-          err.response.data.on('data', (e) => {
-            err.response.data = e.toString();
-          });
-        }
-      };
+        };
 
-      this.httpClient.requestStream(location, xml, headers, options, this).then((res) => {
-        this.lastRequestHeaders = res.headers;
-        if (res.data.on) {
-          res.data.on('error', (err) => onError(err));
-        }
-        // When the output element cannot be looked up in the wsdl,
-        // play it safe and don't stream
-        if (res.status !== 200 || !output || !output.$lookupTypes) {
-          getStream(res.data).then((body) => {
-            this.lastResponse = body;
-            this.lastElapsedTime = Date.now() - startTime;
-            this.lastResponseHeaders = res && res.headers;
-            // Added mostly for testability, but possibly useful for debugging
-            this.lastRequestHeaders = (res.config && res.config.headers) || res.headers;
-            this.emit('response', body, res, eid);
+        this.httpClient.requestStream(location, xml, headers, options, this).then(async (res) => {
+          this.lastRequestHeaders = res.requestHeaders;
+          // When the output element cannot be looked up in the wsdl,
+          // play it safe and don't stream
+          if (res.status !== 200 || !output || !output.$lookupTypes) {
+            try {
+              const body = await streamToString(res.data as ReadableStream<Uint8Array>);
+              this.lastResponse = body;
+              this.lastElapsedTime = Date.now() - startTime;
+              this.lastResponseHeaders = res.headers as Record<string, string>;
+              this.lastRequestHeaders = res.requestHeaders;
+              this.emit('response', body, res, eid);
 
-            return parseSync(body, res);
-          });
-          return;
-        }
-        if (this.returnSaxStream) {
-          // directly return the saxStream allowing the end user to define
-          // the parsing logics and corresponding errors managements
-          const saxStream = this.wsdl.getSaxStream(res.data);
-          return finish({ saxStream }, '<stream>', res.data);
-        } else {
-          this.wsdl.xmlToObject(res.data, (error, obj) => {
-            this.lastResponse = res;
-            this.lastElapsedTime = Date.now() - startTime;
-            this.lastResponseHeaders = res && res.headers;
-            // Added mostly for testability, but possibly useful for debugging
-            this.lastRequestHeaders = res.config.headers;
-            this.emit('response', '<stream>', res.data, eid);
-
-            if (error) {
-              error.response = res;
-              error.body = '<stream>';
-              this.emit('soapError', error, eid);
-              return callback(error, res, undefined, undefined, xml);
+              return parseSync(body, res);
+            } catch (err) {
+              return onError(err);
             }
-
-            return finish(obj, '<stream>', res);
-          });
-        }
-      }, onError);
-      return;
-    }
-
-    const startTime = Date.now();
-    return this.httpClient.request(
-      location,
-      xml,
-      (err, response, body) => {
-        this.lastResponse = body;
-        if (response) {
-          this.lastResponseHeaders = response.headers;
-          this.lastElapsedTime = Date.now() - startTime;
-          this.lastResponseAttachments = response.mtomResponseAttachments;
-          // Added mostly for testability, but possibly useful for debugging
-          this.lastRequestHeaders = response.config && response.config.headers;
-        }
-        this.emit('response', body, response, eid);
-
-        if (err) {
-          this.lastRequestHeaders = err.config && err.config.headers;
-          try {
-            if (err.response && err.response.data) {
-              this.wsdl.xmlToObject(err.response.data);
-            }
-          } catch (error) {
-            err.root = error.root || error;
           }
-          callback(err, undefined, undefined, undefined, xml);
-        } else {
-          return parseSync(body, response);
-        }
-      },
-      headers,
-      options,
-      this,
-    );
+          if (this.returnSaxStream) {
+            // directly return the saxStream allowing the end user to define
+            // the parsing logics and corresponding errors managements
+            const saxStream = this.wsdl.getSaxStream(res.data);
+            return finish({ saxStream }, '<stream>', res.data);
+          } else {
+            this.wsdl.xmlToObject(res.data, (error, obj) => {
+              this.lastResponse = res;
+              this.lastElapsedTime = Date.now() - startTime;
+              this.lastResponseHeaders = res.headers as Record<string, string>;
+              this.lastRequestHeaders = res.requestHeaders;
+              this.emit('response', '<stream>', res.data, eid);
+
+              if (error) {
+                error.response = res;
+                error.body = '<stream>';
+                this.emit('soapError', error, eid);
+                return callback(error, res, undefined, undefined, xml);
+              }
+
+              return finish(obj, '<stream>', res);
+            });
+          }
+        }, onError);
+        return;
+      }
+
+      const startTime = Date.now();
+      return this.httpClient.request(
+        location,
+        xml,
+        (err, response, body) => {
+          this.lastResponse = body;
+          if (response) {
+            this.lastResponseHeaders = response.headers as Record<string, string>;
+            this.lastElapsedTime = Date.now() - startTime;
+            this.lastResponseAttachments = response.mtomResponseAttachments;
+            // Added mostly for testability, but possibly useful for debugging
+            this.lastRequestHeaders = response.requestHeaders;
+          }
+          this.emit('response', body, response, eid);
+
+          if (err) {
+            this.lastRequestHeaders = err.requestHeaders;
+            callback(err, undefined, undefined, undefined, xml);
+          } else {
+            return parseSync(body, response);
+          }
+        },
+        headers,
+        options,
+        this,
+      );
+    };
+
+    // Execute the request - use async only when security requires it
+    if (needsAsyncSecurity) {
+      getSecurityXmlAsync().then(buildAndSendRequest);
+    } else {
+      buildAndSendRequest(getSecurityXmlSync());
+    }
   }
 }

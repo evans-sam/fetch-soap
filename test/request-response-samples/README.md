@@ -2,7 +2,7 @@
 
 This directory contains request / response samples. This is the fastest way to
 add tests, and it allows us to focus on higher level interfaces that should never
-change. We can change the guts of node-soap with more confidence as more samples
+change. We can change the guts of fetch-soap with more confidence as more samples
 are added herein.
 
 Follow this process to add samples:
