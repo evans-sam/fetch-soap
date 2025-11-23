@@ -34,6 +34,23 @@ describe('testing adding header rely on completed xml', () => {
   });
 
   it('should add header to request, which created from xml before request', function (done) {
+    // Create a custom mock HTTP client that captures headers
+    var capturedHeaders = null;
+    var customMockClient = {
+      request: function (rurl, data, callback, exheaders, exoptions) {
+        capturedHeaders = exheaders;
+        var res = {
+          status: 200,
+          statusText: 'OK',
+          headers: { 'content-type': 'text/xml' },
+          data: envelope,
+          requestHeaders: exheaders || {},
+        };
+        queueMicrotask(() => callback(null, res, res.data));
+        return Promise.resolve(res);
+      },
+    };
+
     soap.createClient(
       testHelpers.toTestUrl(__dirname + '/wsdl/complex/registration-common.wsdl'),
       { httpClient: mockHttpClient },
@@ -51,13 +68,14 @@ describe('testing adding header rely on completed xml', () => {
           client.addHttpHeader(testHeaderKey, xml);
         });
 
-        client.registerUser('', function (err, result) {
-          const header = result.request._header;
-          const headerKey = header.includes(testHeaderKey);
-          const headerValue = header.includes(testHeaderValue);
+        // Replace httpClient with our custom mock for the actual SOAP call
+        client.httpClient = customMockClient;
 
-          assert.equal(headerKey, true);
-          assert.equal(headerValue, true);
+        client.registerUser('', function (err, result) {
+          // Verify the header was added to the request
+          assert.ok(capturedHeaders);
+          assert.ok(capturedHeaders[testHeaderKey]);
+          assert.equal(capturedHeaders[testHeaderKey], testHeaderValue);
           done();
         });
       },

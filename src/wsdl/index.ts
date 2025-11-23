@@ -1178,9 +1178,9 @@ export class WSDL {
       this.options.httpClient = options.httpClient;
     }
 
-    // The supplied request-object should be passed through
-    if (options.request) {
-      this.options.request = options.request;
+    // The supplied fetch implementation should be passed through
+    if (options.fetch) {
+      this.options.fetch = options.fetch;
     }
 
     const ignoreBaseNameSpaces = options ? options.ignoreBaseNameSpaces : null;

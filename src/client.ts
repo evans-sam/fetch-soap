@@ -3,16 +3,31 @@
  * MIT Licensed
  */
 
-import { AxiosResponseHeaders, RawAxiosResponseHeaders } from 'axios';
 import debugBuilder from 'debug';
 import EventEmitter from 'eventemitter3';
-import getStream from 'get-stream';
 import * as _ from 'lodash';
-import { HttpClient } from './http';
+import { HttpClient, IHttpResponse } from './http';
 import { IHeaders, IHttpClient, IMTOMAttachments, IOptions, ISecurity, SoapMethod, SoapMethodAsync } from './types';
 import { assert, findPrefix } from './utils';
 import { WSDL } from './wsdl';
 import { IPort, OperationElement, ServiceElement } from './wsdl/elements';
+
+/**
+ * Read a ReadableStream to string
+ */
+async function streamToString(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let result = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    result += decoder.decode(value, { stream: true });
+  }
+  result += decoder.decode(); // flush
+  return result;
+}
 
 const debug = debugBuilder('fetch-soap');
 
@@ -49,7 +64,7 @@ export class Client extends EventEmitter {
   public lastEndpoint?: string;
   public lastRequestHeaders?: any;
   public lastResponse?: any;
-  public lastResponseHeaders?: AxiosResponseHeaders | RawAxiosResponseHeaders;
+  public lastResponseHeaders?: Record<string, string>;
   public lastElapsedTime?: number;
   public lastResponseAttachments: IMTOMAttachments;
 
@@ -537,39 +552,28 @@ export class Client extends EventEmitter {
           this.lastResponse = null;
           this.lastResponseHeaders = null;
           this.lastElapsedTime = null;
-          this.lastRequestHeaders = err.config && err.config.headers;
+          this.lastRequestHeaders = err.requestHeaders;
           this.emit('response', null, null, eid);
-          if (this.returnSaxStream || !err.response || !err.response.data) {
-            callback(err, undefined, undefined, undefined, xml);
-          } else {
-            err.response.data.on('close', () => {
-              callback(err, undefined, undefined, undefined, xml);
-            });
-            err.response.data.on('data', (e) => {
-              err.response.data = e.toString();
-            });
-          }
+          callback(err, undefined, undefined, undefined, xml);
         };
 
-        this.httpClient.requestStream(location, xml, headers, options, this).then((res) => {
-          this.lastRequestHeaders = res.headers;
-          if (res.data.on) {
-            res.data.on('error', (err) => onError(err));
-          }
+        this.httpClient.requestStream(location, xml, headers, options, this).then(async (res) => {
+          this.lastRequestHeaders = res.requestHeaders;
           // When the output element cannot be looked up in the wsdl,
           // play it safe and don't stream
           if (res.status !== 200 || !output || !output.$lookupTypes) {
-            getStream(res.data).then((body) => {
+            try {
+              const body = await streamToString(res.data as ReadableStream<Uint8Array>);
               this.lastResponse = body;
               this.lastElapsedTime = Date.now() - startTime;
-              this.lastResponseHeaders = res && res.headers;
-              // Added mostly for testability, but possibly useful for debugging
-              this.lastRequestHeaders = (res.config && res.config.headers) || res.headers;
+              this.lastResponseHeaders = res.headers as Record<string, string>;
+              this.lastRequestHeaders = res.requestHeaders;
               this.emit('response', body, res, eid);
 
               return parseSync(body, res);
-            });
-            return;
+            } catch (err) {
+              return onError(err);
+            }
           }
           if (this.returnSaxStream) {
             // directly return the saxStream allowing the end user to define
@@ -580,9 +584,8 @@ export class Client extends EventEmitter {
             this.wsdl.xmlToObject(res.data, (error, obj) => {
               this.lastResponse = res;
               this.lastElapsedTime = Date.now() - startTime;
-              this.lastResponseHeaders = res && res.headers;
-              // Added mostly for testability, but possibly useful for debugging
-              this.lastRequestHeaders = res.config.headers;
+              this.lastResponseHeaders = res.headers as Record<string, string>;
+              this.lastRequestHeaders = res.requestHeaders;
               this.emit('response', '<stream>', res.data, eid);
 
               if (error) {
@@ -606,23 +609,16 @@ export class Client extends EventEmitter {
         (err, response, body) => {
           this.lastResponse = body;
           if (response) {
-            this.lastResponseHeaders = response.headers;
+            this.lastResponseHeaders = response.headers as Record<string, string>;
             this.lastElapsedTime = Date.now() - startTime;
             this.lastResponseAttachments = response.mtomResponseAttachments;
             // Added mostly for testability, but possibly useful for debugging
-            this.lastRequestHeaders = response.config && response.config.headers;
+            this.lastRequestHeaders = response.requestHeaders;
           }
           this.emit('response', body, response, eid);
 
           if (err) {
-            this.lastRequestHeaders = err.config && err.config.headers;
-            try {
-              if (err.response && err.response.data) {
-                this.wsdl.xmlToObject(err.response.data);
-              }
-            } catch (error) {
-              err.root = error.root || error;
-            }
+            this.lastRequestHeaders = err.requestHeaders;
             callback(err, undefined, undefined, undefined, xml);
           } else {
             return parseSync(body, response);

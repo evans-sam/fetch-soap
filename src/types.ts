@@ -1,5 +1,5 @@
-import type { AxiosInstance, AxiosPromise } from 'axios';
 import { WSDL } from './wsdl';
+import type { IHttpResponse } from './http';
 
 export interface IHeaders {
   [k: string]: any;
@@ -10,8 +10,8 @@ export interface IExOptions {
 }
 
 export interface IHttpClient {
-  request(rurl: string, data: any, callback: (error: any, res?: any, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): AxiosPromise;
-  requestStream?(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): AxiosPromise;
+  request(rurl: string, data: any, callback: (error: any, res?: IHttpResponse, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): Promise<IHttpResponse>;
+  requestStream?(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions, caller?): Promise<IHttpResponse>;
 }
 
 /** @deprecated use SoapMethod */
@@ -113,8 +113,8 @@ export interface IOptions extends IWsdlBaseOptions {
   envelopeSoapUrl?: string;
   /** provide your own http client that implements request(rurl, data, callback, exheaders, exoptions) */
   httpClient?: IHttpClient;
-  /** override the request module. */
-  request?: AxiosInstance;
+  /** provide a custom fetch implementation (for testing or special environments) */
+  fetch?: typeof fetch;
   stream?: boolean;
   // allows returning the underlying saxStream that parse the SOAP XML response
   returnSaxStream?: boolean;

@@ -1,72 +1,69 @@
 'use strict';
 
-var soap = require('..'),
+var fs = require('fs'),
+  soap = require('..'),
   assert = require('assert'),
-  httpClient = require('../lib/http.js').HttpClient,
-  util = require('util'),
-  events = require('events'),
-  createSocketStream = require('./_socketStream');
+  httpClient = require('../lib/http.js').HttpClient;
 
 it('should allow customization of httpClient, the wsdl file, and associated data download should pass through it', function (done) {
-  //Make a custom http agent to use streams instead of a real net socket
-  function CustomAgent(options, wsdl, xsd) {
-    var self = this;
-    events.EventEmitter.call(this);
-    self.requests = [];
-    self.maxSockets = 1;
-    self.wsdlStream = wsdl;
-    self.xsdStream = xsd;
-    self.options = options || {};
-    self.proxyOptions = {};
-  }
+  // Load test files
+  var wsdl = fs.readFileSync(__dirname + '/wsdl/xsdinclude/xsd_include_http.wsdl').toString('utf8');
+  var xsd = fs.readFileSync(__dirname + '/wsdl/xsdinclude/types.xsd').toString('utf8');
 
-  util.inherits(CustomAgent, events.EventEmitter);
-
-  CustomAgent.prototype.addRequest = function (req, options) {
-    if (/\?xsd$/.test(req.path)) {
-      req.onSocket(this.xsdStream);
-    } else {
-      req.onSocket(this.wsdlStream);
-    }
-  };
-
-  //Custom httpClient
+  // Custom httpClient that uses mock responses for multiple URLs
   class MyHttpClient extends httpClient {
-    constructor(options, wsdlSocket, xsdSocket) {
+    constructor(options) {
       super(options);
-      this.agent = new CustomAgent(options, wsdlSocket, xsdSocket);
+      this.mockResponses = new Map();
+    }
+
+    setMockResponse(urlPattern, response) {
+      this.mockResponses.set(urlPattern, response);
+    }
+
+    request(rurl, data, callback, exheaders, exoptions) {
+      // Find matching mock response
+      var mockResponse = null;
+      for (var [pattern, response] of this.mockResponses) {
+        if (rurl.includes(pattern)) {
+          mockResponse = response;
+          break;
+        }
+      }
+
+      if (mockResponse) {
+        var res = {
+          status: 200,
+          statusText: 'OK',
+          headers: { 'content-type': 'text/xml' },
+          data: mockResponse,
+          requestHeaders: exheaders || {},
+        };
+        // Use queueMicrotask to simulate async response
+        queueMicrotask(() => {
+          callback(null, res, mockResponse);
+        });
+        return Promise.resolve(res);
+      }
+
+      // Fall back to actual fetch for unmocked URLs
+      return super.request(rurl, data, callback, exheaders, exoptions);
     }
   }
 
-  MyHttpClient.prototype.request = function (rurl, data, callback, exheaders, exoptions) {
-    var self = this;
-    var options = self.buildRequest(rurl, data, exheaders, exoptions);
-    //Specify agent to use
-    options.httpAgent = this.agent;
-    var headers = options.headers;
-    var req = self._request(options).then(
-      function (res) {
-        res.data = self.handleResponse(req, res, res.data);
-        callback(null, res, res.data);
-        if (headers.Connection !== 'keep-alive') {
-          res.request.end(data);
-        }
-      },
-      (err) => {
-        return callback(err);
-      },
-    );
-    return req;
-  };
+  var httpCustomClient = new MyHttpClient({});
 
-  var httpCustomClient = new MyHttpClient({}, createSocketStream(__dirname + '/wsdl/xsdinclude/xsd_include_http.wsdl'), createSocketStream(__dirname + '/wsdl/xsdinclude/types.xsd'));
+  // Set up mock responses
+  httpCustomClient.setMockResponse('?wsdl', wsdl);
+  httpCustomClient.setMockResponse('?xsd', xsd);
+
   var url = 'http://localhost:50000/Dummy.asmx?wsdl';
   soap.createClient(url, { httpClient: httpCustomClient }, function (err, client) {
-    assert.ok(client);
     assert.ifError(err);
+    assert.ok(client);
     assert.equal(client.httpClient, httpCustomClient);
     var description = client.describe();
-    assert.deepEqual(client.describe(), {
+    assert.deepEqual(description, {
       DummyService: {
         DummyPortType: {
           Dummy: {
