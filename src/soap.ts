@@ -12,7 +12,7 @@ import { open_wsdl, WSDL } from './wsdl';
 export const security = _security;
 export { Client } from './client';
 export { HttpClient } from './http';
-export { BasicAuthSecurity, BearerSecurity, NTLMSecurity, WSSecurity } from './security';
+export { BasicAuthSecurity, BearerSecurity, WSSecurity } from './security';
 export { passwordDigest } from './utils';
 export * from './types';
 export { WSDL } from './wsdl';

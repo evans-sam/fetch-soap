@@ -18,7 +18,42 @@
     "url": "https://github.com/evans-sam/fetch-soap.git"
   },
   "main": "./lib/soap.js",
+  "module": "./lib/soap.js",
   "types": "./lib/soap.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./lib/soap.d.ts",
+      "require": "./lib/soap.js",
+      "default": "./lib/soap.js"
+    },
+    "./security": {
+      "types": "./lib/security/index.d.ts",
+      "require": "./lib/security/index.js",
+      "default": "./lib/security/index.js"
+    },
+    "./client": {
+      "types": "./lib/client.d.ts",
+      "require": "./lib/client.js",
+      "default": "./lib/client.js"
+    },
+    "./wsdl": {
+      "types": "./lib/wsdl/index.d.ts",
+      "require": "./lib/wsdl/index.js",
+      "default": "./lib/wsdl/index.js"
+    },
+    "./http": {
+      "types": "./lib/http.d.ts",
+      "require": "./lib/http.js",
+      "default": "./lib/http.js"
+    },
+    "./types": {
+      "types": "./lib/types.d.ts",
+      "require": "./lib/types.js",
+      "default": "./lib/types.js"
+    },
+    "./package.json": "./package.json"
+  },
   "directories": {
     "lib": "./lib",
     "test": "./test"
@@ -46,6 +81,11 @@
     "universal"
   ],
   "license": "MIT",
+  "files": [
+    "lib",
+    "LICENSE",
+    "README.md"
+  ],
   "devDependencies": {
     "@eslint/js": "^9.38.0",
     "@types/debug": "^4.1.12",
