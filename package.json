@@ -2,6 +2,7 @@
   "name": "fetch-soap",
   "version": "0.1.0",
   "description": "A universal SOAP client using fetch - works in browsers, edge runtimes, and Node.js",
+  "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
@@ -24,32 +25,32 @@
   "exports": {
     ".": {
       "types": "./lib/soap.d.ts",
-      "require": "./lib/soap.js",
+      "import": "./lib/soap.js",
       "default": "./lib/soap.js"
     },
     "./security": {
       "types": "./lib/security/index.d.ts",
-      "require": "./lib/security/index.js",
+      "import": "./lib/security/index.js",
       "default": "./lib/security/index.js"
     },
     "./client": {
       "types": "./lib/client.d.ts",
-      "require": "./lib/client.js",
+      "import": "./lib/client.js",
       "default": "./lib/client.js"
     },
     "./wsdl": {
       "types": "./lib/wsdl/index.d.ts",
-      "require": "./lib/wsdl/index.js",
+      "import": "./lib/wsdl/index.js",
       "default": "./lib/wsdl/index.js"
     },
     "./http": {
       "types": "./lib/http.d.ts",
-      "require": "./lib/http.js",
+      "import": "./lib/http.js",
       "default": "./lib/http.js"
     },
     "./types": {
       "types": "./lib/types.d.ts",
-      "require": "./lib/types.js",
+      "import": "./lib/types.js",
       "default": "./lib/types.js"
     },
     "./package.json": "./package.json"
