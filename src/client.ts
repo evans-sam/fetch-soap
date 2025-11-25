@@ -497,18 +497,7 @@ export class Client extends EventEmitter {
         encoding +
         this.wsdl.xmlnsInEnvelope +
         '>' +
-        (hasHeaderContent
-          ? '<' +
-            envelopeKey +
-            ':Header' +
-            (this.wsdl.xmlnsInHeader ? ' ' + this.wsdl.xmlnsInHeader : '') +
-            '>' +
-            (decodedHeaders ? decodedHeaders : '') +
-            securityXml +
-            '</' +
-            envelopeKey +
-            ':Header>'
-          : '') +
+        (hasHeaderContent ? '<' + envelopeKey + ':Header' + (this.wsdl.xmlnsInHeader ? ' ' + this.wsdl.xmlnsInHeader : '') + '>' + (decodedHeaders ? decodedHeaders : '') + securityXml + '</' + envelopeKey + ':Header>' : '') +
         '<' +
         envelopeKey +
         ':Body' +

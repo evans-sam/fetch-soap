@@ -164,11 +164,7 @@ export class HttpClient implements IHttpClient {
             dataParts.push(textEncoder.encode(`${key}: ${part[key]}\r\n`));
           }
         });
-        dataParts.push(
-          textEncoder.encode('\r\n'),
-          textEncoder.encode(part.body),
-          textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`),
-        );
+        dataParts.push(textEncoder.encode('\r\n'), textEncoder.encode(part.body), textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
         multipartCount++;
       });
       options.body = concatUint8Arrays(dataParts);
@@ -217,13 +213,7 @@ export class HttpClient implements IHttpClient {
     return obj;
   }
 
-  public request(
-    rurl: string,
-    data: any,
-    callback: (error: any, res?: IHttpResponse, body?: any) => any,
-    exheaders?: IHeaders,
-    exoptions?: IExOptions,
-  ): Promise<IHttpResponse> {
+  public request(rurl: string, data: any, callback: (error: any, res?: IHttpResponse, body?: any) => any, exheaders?: IHeaders, exoptions?: IExOptions): Promise<IHttpResponse> {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
     const fetchFn = this.customFetch || fetch;
 
@@ -329,12 +319,7 @@ export class HttpClient implements IHttpClient {
     return responsePromise;
   }
 
-  public requestStream(
-    rurl: string,
-    data: any,
-    exheaders?: IHeaders,
-    exoptions?: IExOptions,
-  ): Promise<IHttpResponse> {
+  public requestStream(rurl: string, data: any, exheaders?: IHeaders, exoptions?: IExOptions): Promise<IHttpResponse> {
     const options = this.buildRequest(rurl, data, exheaders, exoptions);
     const fetchFn = this.customFetch || fetch;
 

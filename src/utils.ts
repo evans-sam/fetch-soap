@@ -146,11 +146,7 @@ function indexOfPattern(data: Uint8Array, pattern: Uint8Array, startIndex = 0): 
  * @param boundary The multipart boundary string
  * @param callback Callback with parsed attachments
  */
-export function parseMTOMResp(
-  payload: ArrayBuffer | Uint8Array,
-  boundary: string,
-  callback: (err?: Error, resp?: IMTOMAttachments) => void,
-) {
+export function parseMTOMResp(payload: ArrayBuffer | Uint8Array, boundary: string, callback: (err?: Error, resp?: IMTOMAttachments) => void) {
   try {
     const data = payload instanceof Uint8Array ? payload : new Uint8Array(payload);
     const textDecoder = new TextDecoder('utf-8');
