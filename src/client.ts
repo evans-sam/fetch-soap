@@ -6,7 +6,7 @@
 import debugBuilder from 'debug';
 import EventEmitter from 'eventemitter3';
 import * as _ from 'lodash';
-import { HttpClient, IHttpResponse } from './http';
+import { HttpClient } from './http';
 import { IHeaders, IHttpClient, IMTOMAttachments, IOptions, ISecurity, SoapMethod, SoapMethodAsync } from './types';
 import { assert, findPrefix } from './utils';
 import { WSDL } from './wsdl';
@@ -497,18 +497,7 @@ export class Client extends EventEmitter {
         encoding +
         this.wsdl.xmlnsInEnvelope +
         '>' +
-        (hasHeaderContent
-          ? '<' +
-            envelopeKey +
-            ':Header' +
-            (this.wsdl.xmlnsInHeader ? ' ' + this.wsdl.xmlnsInHeader : '') +
-            '>' +
-            (decodedHeaders ? decodedHeaders : '') +
-            securityXml +
-            '</' +
-            envelopeKey +
-            ':Header>'
-          : '') +
+        (hasHeaderContent ? '<' + envelopeKey + ':Header' + (this.wsdl.xmlnsInHeader ? ' ' + this.wsdl.xmlnsInHeader : '') + '>' + (decodedHeaders ? decodedHeaders : '') + securityXml + '</' + envelopeKey + ':Header>' : '') +
         '<' +
         envelopeKey +
         ':Body' +

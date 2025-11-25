@@ -84,10 +84,13 @@ var mockHttpClient = testHelpers.createMockHttpClient(__dirname);
     });
 
     it('should allow customization of fetch for http client', function (done) {
-      var myFetch = function () { return Promise.resolve(new Response('')); };
+      var myFetch = function () {
+        return Promise.resolve(new Response(''));
+      };
       // Use inline WSDL to avoid needing mock httpClient - this test specifically checks
       // that the fetch option is used when no custom httpClient is provided
-      var inlineWsdl = '<?xml version="1.0" encoding="UTF-8"?>' +
+      var inlineWsdl =
+        '<?xml version="1.0" encoding="UTF-8"?>' +
         '<wsdl:definitions name="MyService" targetNamespace="http://www.example.com/v1" xmlns="http://www.example.com/v1" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">' +
         '<wsdl:types><xs:schema attributeFormDefault="qualified" elementFormDefault="qualified" targetNamespace="http://www.example.com/v1" xmlns="http://www.example.com/v1">' +
         '<xs:element name="Request"></xs:element><xs:element name="Response"></xs:element></xs:schema></wsdl:types>' +
@@ -129,9 +132,11 @@ var mockHttpClient = testHelpers.createMockHttpClient(__dirname);
         function (err, client) {
           // Create a mock security instance that has empty toXML()
           var mockSecurity = {
-            toXML: function() { return ''; },
-            addOptions: function() {},
-            addHeaders: function() {}
+            toXML: function () {
+              return '';
+            },
+            addOptions: function () {},
+            addHeaders: function () {},
           };
           var xml = mockSecurity.toXML();
           xml.should.be.exactly('');
@@ -1867,7 +1872,9 @@ var mockHttpClient = testHelpers.createMockHttpClient(__dirname);
       });
 
       it('should allow customization of fetch for http client', function (done) {
-        var myFetch = function () { return Promise.resolve(new Response('')); };
+        var myFetch = function () {
+          return Promise.resolve(new Response(''));
+        };
         // Use inline WSDL to avoid needing mock httpClient - this test specifically
         // checks that the fetch option is used when no custom httpClient is provided
         var inlineWsdl =

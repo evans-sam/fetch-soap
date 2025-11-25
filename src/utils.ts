@@ -122,20 +122,6 @@ export function xmlEscape(obj) {
 }
 
 /**
- * Concatenate multiple Uint8Arrays into a single Uint8Array
- */
-function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
-
-/**
  * Find the index of a pattern in a Uint8Array
  */
 function indexOfPattern(data: Uint8Array, pattern: Uint8Array, startIndex = 0): number {
@@ -160,11 +146,7 @@ function indexOfPattern(data: Uint8Array, pattern: Uint8Array, startIndex = 0): 
  * @param boundary The multipart boundary string
  * @param callback Callback with parsed attachments
  */
-export function parseMTOMResp(
-  payload: ArrayBuffer | Uint8Array,
-  boundary: string,
-  callback: (err?: Error, resp?: IMTOMAttachments) => void,
-) {
+export function parseMTOMResp(payload: ArrayBuffer | Uint8Array, boundary: string, callback: (err?: Error, resp?: IMTOMAttachments) => void) {
   try {
     const data = payload instanceof Uint8Array ? payload : new Uint8Array(payload);
     const textDecoder = new TextDecoder('utf-8');
@@ -173,7 +155,6 @@ export function parseMTOMResp(
     // The boundary delimiter is: CRLF + "--" + boundary
     // But the first boundary may not have a leading CRLF
     const boundaryBytes = new TextEncoder().encode('--' + boundary);
-    const crlfBytes = new Uint8Array([0x0d, 0x0a]); // \r\n
     const doubleCrlfBytes = new Uint8Array([0x0d, 0x0a, 0x0d, 0x0a]); // \r\n\r\n
 
     // Find the first boundary
