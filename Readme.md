@@ -2,23 +2,21 @@
 
 A universal SOAP client using the Fetch API - works in browsers, edge runtimes (Cloudflare Workers, Vercel Edge, Deno), and Node.js.
 
-> **Note:** This project is a fork of [node-soap](https://github.com/vpulim/node-soap) v1.6.0, being refactored to use the Fetch API instead of Node.js-specific dependencies. The goal is to create a truly universal SOAP client that works anywhere JavaScript runs.
+> **Note:** This project is a fork of [node-soap](https://github.com/vpulim/node-soap) v1.6.0, refactored to use the Fetch API instead of Node.js-specific dependencies. It provides a truly universal SOAP client that works anywhere JavaScript runs.
 
-## Goals
+## Features
 
-- **Universal**: Works in browsers, edge runtimes, and Node.js
-- **Modern**: Uses the Fetch API and modern JavaScript/TypeScript
-- **Minimal dependencies**: Remove Node.js-specific dependencies
-- **API compatible**: Maintain compatibility with node-soap where possible
+- **Universal**: Works in browsers, edge runtimes (Cloudflare Workers, Vercel Edge, Deno), and Node.js
+- **Modern**: Uses the Fetch API and ES modules
+- **Minimal dependencies**: No Node.js-specific dependencies
+- **API compatible**: Maintains compatibility with node-soap client API
 
-## Current Status
+## What's Different from node-soap
 
-This project is in active development. We are working on:
-
-1. Replacing Axios with the Fetch API
-2. Removing Node.js-specific dependencies (fs, http, crypto, etc.)
-3. Making the XML parser work in all environments
-4. Testing across browsers and edge runtimes
+- Uses **Fetch API** instead of Axios/http
+- **Client-only** - server functionality has been removed for universal runtime support
+- **ES modules** - published as ESM (`"type": "module"`)
+- Removed Node.js-specific security classes (ClientSSLSecurity, NTLMSecurity, WSSecurityCert)
 
 ## Installation
 
@@ -69,6 +67,8 @@ client.MyMethod(args, (err, result, rawResponse, soapHeader, rawRequest) => {
 
 ### Security
 
+The following security implementations are available:
+
 ```javascript
 // Basic Auth
 client.setSecurity(new soap.BasicAuthSecurity('username', 'password'));
@@ -76,17 +76,21 @@ client.setSecurity(new soap.BasicAuthSecurity('username', 'password'));
 // Bearer Token
 client.setSecurity(new soap.BearerSecurity('token'));
 
-// WS-Security
+// WS-Security (UsernameToken)
 client.setSecurity(new soap.WSSecurity('username', 'password', options));
 ```
 
+> **Note:** Node.js-specific security classes (ClientSSLSecurity, NTLMSecurity, WSSecurityCert) are not available in this universal build.
+
 ## Migration from node-soap
 
-fetch-soap aims to be a drop-in replacement for node-soap in most cases. The main differences will be:
+fetch-soap aims to be a drop-in replacement for node-soap's client functionality. The main differences are:
 
-1. Uses Fetch API instead of Axios/request
-2. Works in browsers and edge runtimes
-3. Some Node.js-specific features (like file system access, streaming) may not be available in all environments
+1. **ES modules only** - use `import` instead of `require`
+2. **Client-only** - `soap.listen()` and server functionality are not available
+3. **Fetch API** - uses Fetch instead of Axios/http (custom fetch can be provided via options)
+4. **Limited security** - only BasicAuthSecurity, BearerSecurity, and WSSecurity are available
+5. **No file system access** - WSDL must be loaded via URL or passed as a string
 
 ## Contributing
 
