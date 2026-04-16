@@ -1,30 +1,22 @@
-trim = require('../lib/wsdl/index.js').trim;
-var assert = require('assert');
+import { describe, it } from 'bun:test';
+import * as assert from 'node:assert';
+import { trim } from '../src/wsdl/index.js';
 
-it('should trim correctly', async () => {
-  describe('removes whitespace', async () => {
-    const input = ' \n <> \n  ';
-    const expected = '<>';
+function verify(input: string, expected: string) {
+  const actual = trim(input);
+  assert.strictEqual(actual, expected, `${actual} != ${expected}`);
+}
 
-    verify(input, expected);
+describe('trim', () => {
+  it('removes whitespace', () => {
+    verify(' \n <> \n  ', '<>');
   });
 
-  describe('removes non breaking space', async () => {
-    const input = '\xA0<>';
-    const expected = '<>';
-
-    verify(input, expected);
+  it('removes non breaking space', () => {
+    verify('\xA0<>', '<>');
   });
 
-  describe('removes all', async () => {
-    const input = '\xA0\n \t<\n\t\xA0>\t \n \xA0';
-    const expected = '<\n\t\xA0>';
-
-    verify(input, expected);
+  it('removes all', () => {
+    verify('\xA0\n \t<\n\t\xA0>\t \n \xA0', '<\n\t\xA0>');
   });
 });
-
-function verify(input, expected) {
-  const actual = trim(input);
-  assert(actual === expected, `${actual} != ${expected}`);
-}
