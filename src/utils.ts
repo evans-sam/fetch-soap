@@ -1,5 +1,5 @@
-import { IMTOMAttachments, IWSDLCache } from './types';
-import { WSDL } from './wsdl';
+import { IMTOMAttachments, IWSDLCache } from './types.js';
+import { WSDL } from './wsdl/index.js';
 
 /**
  * Simple assertion function (replaces Node.js assert module)

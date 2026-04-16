@@ -5,13 +5,13 @@
 
 import debugBuilder from 'debug';
 import MIMEType from 'whatwg-mimetype';
-import { IExOptions, IHeaders, IHttpClient, IOptions } from './types';
-import { parseMTOMResp } from './utils';
+import { IExOptions, IHeaders, IHttpClient, IOptions } from './types.js';
+import { parseMTOMResp } from './utils.js';
 
 const debug = debugBuilder('fetch-soap');
 
 // Use default import for bundler compatibility (named imports from JSON don't work in webpack/Next.js)
-import pkg from '../package.json';
+import pkg from '../package.json' with { type: 'json' };
 const version = pkg.version;
 
 const textEncoder = new TextEncoder();

@@ -3,19 +3,19 @@
  * MIT Licensed
  */
 
-import { Client } from './client';
-import * as _security from './security';
-import { IOptions, IWSDLCache } from './types';
-import { wsdlCacheSingleton } from './utils';
-import { open_wsdl, WSDL } from './wsdl';
+import { Client } from './client.js';
+import * as _security from './security/index.js';
+import { IOptions, IWSDLCache } from './types.js';
+import { wsdlCacheSingleton } from './utils.js';
+import { open_wsdl, WSDL } from './wsdl/index.js';
 
 export const security = _security;
-export { Client } from './client';
-export { HttpClient } from './http';
-export { BasicAuthSecurity, BearerSecurity, WSSecurity } from './security';
-export { passwordDigest } from './utils';
-export * from './types';
-export { WSDL } from './wsdl';
+export { Client } from './client.js';
+export { HttpClient } from './http.js';
+export { BasicAuthSecurity, BearerSecurity, WSSecurity } from './security/index.js';
+export { passwordDigest } from './utils.js';
+export * from './types.js';
+export { WSDL } from './wsdl/index.js';
 
 type WSDLCallback = (error: any, result?: WSDL) => any;
 

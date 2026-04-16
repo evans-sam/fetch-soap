@@ -1,5 +1,5 @@
-import { WSDL } from './wsdl';
-import type { IHttpResponse } from './http';
+import { WSDL } from './wsdl/index.js';
+import type { IHttpResponse } from './http.js';
 
 export interface IHeaders {
   [k: string]: any;

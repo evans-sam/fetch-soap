@@ -1,5 +1,5 @@
-import { ISecurity } from '../types';
-import { generateNonce, passwordDigest, xmlEscape } from '../utils';
+import { ISecurity } from '../types.js';
+import { generateNonce, passwordDigest, xmlEscape } from '../utils.js';
 
 const validPasswordTypes = ['PasswordDigest', 'PasswordText'];
 

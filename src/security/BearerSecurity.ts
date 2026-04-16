@@ -1,5 +1,5 @@
 import * as _ from 'lodash';
-import { IHeaders, ISecurity } from '../types';
+import { IHeaders, ISecurity } from '../types.js';
 
 export class BearerSecurity implements ISecurity {
   private defaults;
