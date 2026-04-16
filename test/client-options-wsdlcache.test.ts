@@ -1,27 +1,31 @@
-'use strict';
-var soap = require('..'),
-  assert = require('assert'),
-  sinon = require('sinon'),
-  utils = require('../lib/utils'),
-  wsdl = require('../lib/wsdl'),
-  testHelpers = require('./test-helpers');
+import { describe, it, beforeAll, beforeEach, afterEach, spyOn, type Mock } from 'bun:test';
+import * as assert from 'node:assert';
+import * as soap from '../src/soap.js';
+import * as utils from '../src/utils.js';
+import * as wsdl from '../src/wsdl/index.js';
+import * as testHelpers from './test-helpers.js';
 
 describe('SOAP Client - WSDL Cache', function () {
-  var sandbox = sinon.createSandbox();
-  var wsdlUrl;
-  var mockHttpClient;
+  let wsdlUrl: string;
+  let mockHttpClient: ReturnType<typeof testHelpers.createMockHttpClient>;
+  const spies: Array<Mock<(...args: any[]) => any>> = [];
+  let openWsdlSpy: Mock<typeof wsdl.open_wsdl>;
 
-  before(function () {
-    wsdlUrl = testHelpers.toTestUrl(__dirname + '/wsdl/Dummy.wsdl');
-    mockHttpClient = testHelpers.createMockHttpClient(__dirname);
+  beforeAll(function () {
+    wsdlUrl = testHelpers.toTestUrl(import.meta.dir + '/wsdl/Dummy.wsdl');
+    mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
   });
 
   beforeEach(function () {
-    sandbox.spy(wsdl, 'open_wsdl');
+    openWsdlSpy = spyOn(wsdl, 'open_wsdl');
+    spies.push(openWsdlSpy as unknown as Mock<(...args: any[]) => any>);
   });
 
   afterEach(function () {
-    sandbox.restore();
+    while (spies.length) {
+      const s = spies.pop();
+      if (s) s.mockRestore();
+    }
   });
 
   it('should use default cache if not provided', function (done) {
@@ -29,22 +33,27 @@ describe('SOAP Client - WSDL Cache', function () {
     // if other test already loaded this WSDL
     utils.wsdlCacheSingleton.clear();
 
-    var options = { httpClient: mockHttpClient };
+    const options = { httpClient: mockHttpClient };
 
-    // cache miss
+    // cache miss. NB: Bun's spyOn intercepts internal recursive calls to
+    // open_wsdl (for xsd imports from Dummy.wsdl), so one "fresh" createClient
+    // resolves to 3 open_wsdl invocations (root + 2 nested includes). Sinon's
+    // property replacement under CJS only caught the outer call (expected 1).
+    // The cache-hit/miss ratio is what the test actually asserts.
     soap.createClient(wsdlUrl, options, function (err, clientFirstCall) {
       if (err) return done(err);
-      assert.strictEqual(wsdl.open_wsdl.callCount, 1);
+      const firstCount = openWsdlSpy.mock.calls.length;
+      assert.ok(firstCount > 0, 'cache miss must call open_wsdl');
 
       // hits cache
       soap.createClient(wsdlUrl, options, function (err, clientSecondCall) {
         if (err) return done(err);
-        assert.strictEqual(wsdl.open_wsdl.callCount, 1);
+        assert.strictEqual(openWsdlSpy.mock.calls.length, firstCount);
 
         // disabled cache
         soap.createClient(wsdlUrl, { httpClient: mockHttpClient, disableCache: true }, function (err, clientSecondCall) {
           if (err) return done(err);
-          assert.strictEqual(wsdl.open_wsdl.callCount, 2);
+          assert.strictEqual(openWsdlSpy.mock.calls.length, firstCount * 2);
           done();
         });
       });
@@ -53,46 +62,53 @@ describe('SOAP Client - WSDL Cache', function () {
 
   it('should use the provided WSDL cache', function (done) {
     /** @type {IWSDLCache} */
-    var dummyCache = {
+    const dummyCache = {
       has: function () {},
       get: function () {},
       set: function () {},
     };
-    sandbox.stub(dummyCache, 'has');
-    sandbox.stub(dummyCache, 'get');
-    sandbox.stub(dummyCache, 'set');
-    dummyCache.has.returns(false);
-    var options = {
+    const hasSpy = spyOn(dummyCache, 'has') as unknown as Mock<(...args: any[]) => any>;
+    const getSpy = spyOn(dummyCache, 'get') as unknown as Mock<(...args: any[]) => any>;
+    const setSpy = spyOn(dummyCache, 'set') as unknown as Mock<(...args: any[]) => any>;
+    spies.push(hasSpy, getSpy, setSpy);
+    hasSpy.mockReturnValue(false);
+    const options = {
       httpClient: mockHttpClient,
       wsdlCache: dummyCache,
     };
     soap.createClient(wsdlUrl, options, function (err, clientFirstCall) {
       if (err) return done(err);
-      assert.strictEqual(dummyCache.has.callCount, 1);
-      assert.strictEqual(dummyCache.get.callCount, 0);
-      assert.strictEqual(dummyCache.set.callCount, 1);
-      // cache miss
-      assert.strictEqual(wsdl.open_wsdl.callCount, 1);
+      assert.strictEqual(hasSpy.mock.calls.length, 1);
+      assert.strictEqual(getSpy.mock.calls.length, 0);
+      assert.strictEqual(setSpy.mock.calls.length, 1);
+      // cache miss — Bun spyOn also sees recursive calls for nested includes,
+      // so count is > 1 (vs. sinon's 1 under CJS). The ratio is what matters.
+      const firstCount = openWsdlSpy.mock.calls.length;
+      assert.ok(firstCount > 0, 'cache miss must call open_wsdl');
 
-      var cacheEntry = dummyCache.set.firstCall.args;
+      const cacheEntry = setSpy.mock.calls[0];
       assert.deepStrictEqual(cacheEntry[0], wsdlUrl);
 
-      var cachedWSDL = cacheEntry[1];
+      const cachedWSDL = cacheEntry[1];
       assert.ok(cachedWSDL instanceof wsdl.WSDL);
       assert.deepStrictEqual(clientFirstCall.wsdl, cachedWSDL);
 
-      sandbox.reset();
-      dummyCache.has.returns(true);
-      dummyCache.get.returns(cachedWSDL);
+      // sandbox.reset() equivalent — clear call history, keep spies/impls in place
+      openWsdlSpy.mockClear();
+      hasSpy.mockClear();
+      getSpy.mockClear();
+      setSpy.mockClear();
+      hasSpy.mockReturnValue(true);
+      getSpy.mockReturnValue(cachedWSDL);
 
       soap.createClient(wsdlUrl, options, function (err, clientSecondCall) {
         if (err) return done(err);
         // hits cache
-        assert.strictEqual(wsdl.open_wsdl.callCount, 0);
-        assert.strictEqual(dummyCache.has.callCount, 1);
-        assert.strictEqual(dummyCache.get.callCount, 1);
-        assert.deepStrictEqual(dummyCache.get.firstCall.args, [wsdlUrl]);
-        assert.strictEqual(dummyCache.set.callCount, 0);
+        assert.strictEqual(openWsdlSpy.mock.calls.length, 0);
+        assert.strictEqual(hasSpy.mock.calls.length, 1);
+        assert.strictEqual(getSpy.mock.calls.length, 1);
+        assert.deepStrictEqual(getSpy.mock.calls[0], [wsdlUrl]);
+        assert.strictEqual(setSpy.mock.calls.length, 0);
         assert.deepStrictEqual(clientSecondCall.wsdl, cachedWSDL);
         done();
       });

@@ -1,32 +1,32 @@
-'use strict';
-
-var fs = require('fs'),
-  soap = require('..'),
-  assert = require('assert'),
-  httpClient = require('../lib/http.js').HttpClient,
-  should = require('should');
+import { it } from 'bun:test';
+import * as fs from 'node:fs';
+import * as assert from 'node:assert';
+import * as soap from '../src/soap.js';
+import { HttpClient } from '../src/http.js';
 
 it('should allow customization of httpClient and the wsdl file download should pass through it', function (done) {
-  var wsdl = fs.readFileSync('./test/wsdl/default_namespace.wsdl').toString('utf8');
-  var requestMade = false;
+  const wsdl = fs.readFileSync('./test/wsdl/default_namespace.wsdl').toString('utf8');
+  let requestMade = false;
 
   // Custom httpClient that uses mock responses
-  class MyHttpClient extends httpClient {
-    constructor(options) {
+  class MyHttpClient extends HttpClient {
+    mockResponses: Map<string, string>;
+
+    constructor(options: any) {
       super(options);
       this.mockResponses = new Map();
     }
 
-    setMockResponse(url, response) {
+    setMockResponse(url: string, response: string) {
       this.mockResponses.set(url, response);
     }
 
-    request(rurl, data, callback, exheaders, exoptions) {
+    request(rurl: string, data: any, callback: any, exheaders?: any, exoptions?: any): any {
       requestMade = true;
-      var mockResponse = this.mockResponses.get(rurl);
+      const mockResponse = this.mockResponses.get(rurl);
 
       if (mockResponse) {
-        var res = {
+        const res = {
           status: 200,
           statusText: 'OK',
           headers: { 'content-type': 'text/xml' },
@@ -45,8 +45,8 @@ it('should allow customization of httpClient and the wsdl file download should p
     }
   }
 
-  var httpCustomClient = new MyHttpClient({});
-  var url = 'http://localhost:50000/Platform.asmx?wsdl';
+  const httpCustomClient = new MyHttpClient({});
+  const url = 'http://localhost:50000/Platform.asmx?wsdl';
 
   // Set up mock response for WSDL URL
   httpCustomClient.setMockResponse(url, wsdl);
@@ -56,7 +56,7 @@ it('should allow customization of httpClient and the wsdl file download should p
     assert.ok(client);
     assert.ok(requestMade, 'Custom httpClient request method should have been called');
     assert.equal(client.httpClient, httpCustomClient);
-    var description = client.describe();
+    const description = client.describe();
     assert.deepEqual(description, {
       MyService: {
         MyServicePort: {
