@@ -13,3 +13,18 @@ jobs:
       - run: npm run build
       - run: npm run lint
       - run: npm run format:check
+
+  # Fails the PR on high/critical CVEs in production dependencies.
+  # --omit=dev is required: known devDep findings (mocha/sinon transitive chain)
+  # are tracked separately in #22 and would otherwise cause spurious failures.
+  # If a production transitive CVE ever becomes unfixable, consider layering
+  # an allowlist tool (audit-ci, better-npm-audit) on top of this step.
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - run: npm audit --omit=dev --audit-level=high
