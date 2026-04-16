@@ -40,7 +40,8 @@ Consumers continue to use Node/browsers/edge as before. Nothing about the publis
 
 - File rename: `test/*-test.js` → `test/*.test.ts`. Bun's auto-discovery matches `*.test.{ts,js}` / `*_test.{ts,js}` — current hyphen-prefix names don't match. Dot-prefix is Bun's modern convention.
 - Directory layout unchanged. Fixtures in `test/wsdl/`, `test/request-response-samples/`, `test/platform/`, `test/certs/`, `test/static/` are untouched.
-- Helper files: `test-helpers.js` → `test-helpers.ts`, `_socketStream.js` → `_socketStream.ts`. They keep non-`.test` names so the runner skips them.
+- Helper files: `test-helpers.js` → `test-helpers.ts`. Keeps its non-`.test` name so the runner skips it.
+- `test/_socketStream.js` is unused dead code (grep confirms zero importers) and gets **deleted** rather than rewritten. This also retires three transitive devDeps: `duplexer`, `semver`, `readable-stream`. (Factual correction discovered during plan writing.)
 - Single tsconfig — no test-specific tsconfig needed. Bun runs `.ts` natively.
 - Tests import from source: `import * as soap from "../src/soap.js"` (not from `lib/`). No build step required before running tests. `.js` extension per TS ESM convention.
 
@@ -99,7 +100,7 @@ User-chosen option A:
 
 The full rewrite would exceed git's 50% content-similarity threshold for rename detection, breaking `git log --follow` and `git blame`. To preserve history:
 
-1. **Commit 1: pure renames.** `git mv` every `test/*-test.js` → `test/*.test.ts` and `test/test-helpers.js` → `test/test-helpers.ts`, `test/_socketStream.js` → `test/_socketStream.ts`. Zero content change. Files are temporarily non-running (`.ts` extension on CJS content) — acceptable because no test command runs against this commit.
+1. **Commit 1: pure renames.** `git mv` every `test/*-test.js` → `test/*.test.ts` and `test/test-helpers.js` → `test/test-helpers.ts`. Additionally `git rm test/_socketStream.js` (dead code; see above). Zero content change in renamed files. Files are temporarily non-running (`.ts` extension on CJS content) — acceptable because no test command runs against this commit.
 2. **Commit 2+: content rewrite.** Per-file or small batches of rewrites (require→import, should→expect, sinon→bun mocks). Each commit should leave `bun test` passing on the files it touches.
 
 This keeps git's rename detection at 100% on commit 1, so history traversal works cleanly across the migration.
@@ -150,7 +151,7 @@ The `src/ → lib/` pipeline is untouched. The `test/` pipeline is replaced whol
 
 - `test/mocha.opts`
 - `package-lock.json`
-- Dev deps: `mocha`, `should`, `sinon`, `timekeeper`, `source-map-support`, plus their `@types/*` packages
+- Dev deps: `mocha`, `should`, `sinon`, `timekeeper`, `source-map-support`, `duplexer`, `semver`, `readable-stream`, plus any `@types/*` packages tied to the above. (`duplexer`/`semver`/`readable-stream` were only used by the deleted `_socketStream.js`.)
 - Any mocha-specific scripts / config comments
 
 ## Additions
