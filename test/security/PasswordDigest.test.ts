@@ -1,20 +1,19 @@
-'use strict';
+import { describe, it, expect } from 'bun:test';
+import * as assert from 'node:assert';
+import * as Utils from '../../src/utils.js';
 
-var Utils = require('../../lib/utils'),
-  assert = require('assert');
+describe('PasswordDigest', () => {
+  const nonce = '2FW1CIo2ZUOJmSjVRcJZlQ==';
+  const created = '2019-02-12T12:34:12.110Z';
+  const password = 'vM3s1hKVMy6zBOn';
+  const expected = 'wM9xjA92wCw+QcQI1urjZ6B8+LQ=';
 
-describe('PasswordDigest', function () {
-  var nonce = '2FW1CIo2ZUOJmSjVRcJZlQ==';
-  var created = '2019-02-12T12:34:12.110Z';
-  var password = 'vM3s1hKVMy6zBOn';
-  var expected = 'wM9xjA92wCw+QcQI1urjZ6B8+LQ=';
-
-  it('is a function', function () {
-    Utils.passwordDigest.should.be.type('function');
+  it('is a function', () => {
+    expect(typeof Utils.passwordDigest).toBe('function');
   });
 
-  it('should calculate a valid passworddigest ', async function () {
-    var result = await Utils.passwordDigest(nonce, created, password);
+  it('should calculate a valid passworddigest ', async () => {
+    const result = await Utils.passwordDigest(nonce, created, password);
     assert.equal(result, expected);
   });
 });

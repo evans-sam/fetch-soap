@@ -1,31 +1,31 @@
-'use strict';
+import { describe, it, expect } from 'bun:test';
+import { BearerSecurity } from '../../src/security/index.js';
 
-describe('BearerSecurity', function () {
-  var BearerSecurity = require('../../').BearerSecurity;
-  var token = 'token';
+describe('BearerSecurity', () => {
+  const token = 'token';
 
-  it('is a function', function () {
-    BearerSecurity.should.be.type('function');
+  it('is a function', () => {
+    expect(typeof BearerSecurity).toBe('function');
   });
 
-  describe('defaultOption param', function () {
-    it('is accepted as the second param', function () {
+  describe('defaultOption param', () => {
+    it('is accepted as the second param', () => {
       new BearerSecurity(token, {});
     });
 
-    it('is used in addOptions', function () {
-      var options = {};
-      var defaultOptions = { foo: 2 };
-      var instance = new BearerSecurity(token, defaultOptions);
+    it('is used in addOptions', () => {
+      const options: Record<string, unknown> = {};
+      const defaultOptions = { foo: 2 };
+      const instance = new BearerSecurity(token, defaultOptions);
       instance.addOptions(options);
-      options.should.have.property('foo', 2);
+      expect(options).toHaveProperty('foo', 2);
     });
 
     it('should return the authoriation header on calling addHeader', () => {
       const security = new BearerSecurity(token, {});
-      let headers = {};
+      const headers: Record<string, string> = {};
       security.addHeaders(headers);
-      headers.should.have.property('Authorization', 'Bearer token');
+      expect(headers).toHaveProperty('Authorization', 'Bearer token');
     });
   });
 });

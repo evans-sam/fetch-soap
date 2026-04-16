@@ -1,32 +1,32 @@
-'use strict';
+import { describe, it, expect } from 'bun:test';
+import { BasicAuthSecurity } from '../../src/security/index.js';
 
-describe('BasicAuthSecurity', function () {
-  var BasicAuthSecurity = require('../../').BasicAuthSecurity;
-  var username = 'admin';
-  var password = 'password1234';
+describe('BasicAuthSecurity', () => {
+  const username = 'admin';
+  const password = 'password1234';
 
-  it('is a function', function () {
-    BasicAuthSecurity.should.be.type('function');
+  it('is a function', () => {
+    expect(typeof BasicAuthSecurity).toBe('function');
   });
 
-  describe('defaultOption param', function () {
-    it('is accepted as the third param', function () {
+  describe('defaultOption param', () => {
+    it('is accepted as the third param', () => {
       new BasicAuthSecurity(username, password, {});
     });
 
-    it('Should have Authorization header when addHeaders is invoked', function () {
-      var security = new BasicAuthSecurity(username, password, {});
-      var headers = {};
+    it('Should have Authorization header when addHeaders is invoked', () => {
+      const security = new BasicAuthSecurity(username, password, {});
+      const headers: Record<string, string> = {};
       security.addHeaders(headers);
-      headers.should.have.property('Authorization');
+      expect(headers).toHaveProperty('Authorization');
     });
 
-    it('is used in addOptions', function () {
-      var options = {};
-      var defaultOptions = { foo: 3 };
-      var instance = new BasicAuthSecurity(username, password, defaultOptions);
+    it('is used in addOptions', () => {
+      const options: Record<string, unknown> = {};
+      const defaultOptions = { foo: 3 };
+      const instance = new BasicAuthSecurity(username, password, defaultOptions);
       instance.addOptions(options);
-      options.should.have.property('foo', 3);
+      expect(options).toHaveProperty('foo', 3);
     });
   });
 });
