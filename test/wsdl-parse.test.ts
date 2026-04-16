@@ -1,14 +1,14 @@
-'use strict';
+import { describe, it } from 'bun:test';
+import * as path from 'node:path';
+import * as assert from 'node:assert';
+import { open_wsdl } from '../src/wsdl/index.js';
+import * as testHelpers from './test-helpers.js';
 
-var path = require('path');
-var open_wsdl = require('../lib/wsdl').open_wsdl;
-var assert = require('assert');
-var testHelpers = require('./test-helpers');
-var mockHttpClient = testHelpers.createMockHttpClient(__dirname);
+const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
 
-describe(__filename, function () {
+describe(import.meta.path, function () {
   it('should parse recursive elements', function (done) {
-    open_wsdl(testHelpers.toTestUrl(path.resolve(__dirname, 'wsdl/recursive.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
+    open_wsdl(testHelpers.toTestUrl(path.resolve(import.meta.dir, 'wsdl/recursive.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
       assert.equal(def.definitions.messages.operationRequest.parts['constraint[]'].expression, def.definitions.messages.operationRequest.parts['constraint[]'].expression.expression);
       assert.equal(def.definitions.messages.operationRequest.parts['constraint[]'].expression, def.definitions.messages.operationRequest.parts['constraint[]'].expression.expression['constraint[]'].expression);
       done();
@@ -16,19 +16,19 @@ describe(__filename, function () {
   });
 
   it('should parse recursive wsdls', function (done) {
-    open_wsdl(testHelpers.toTestUrl(path.resolve(__dirname, 'wsdl/recursive/file.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
+    open_wsdl(testHelpers.toTestUrl(path.resolve(import.meta.dir, 'wsdl/recursive/file.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
       // If we get here then we succeeded
       done(err);
     });
   });
 
   it('should parse recursive wsdls keeping default options', function (done) {
-    open_wsdl(testHelpers.toTestUrl(path.resolve(__dirname, 'wsdl/recursive/file.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
+    open_wsdl(testHelpers.toTestUrl(path.resolve(import.meta.dir, 'wsdl/recursive/file.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
       if (err) {
         return done(err);
       }
 
-      def._includesWsdl.forEach(function (currentWsdl) {
+      (def as any)._includesWsdl.forEach(function (currentWsdl: any) {
         assert.deepEqual(def.options, currentWsdl.options);
       });
 
@@ -38,7 +38,7 @@ describe(__filename, function () {
 
   it('should parse recursive wsdls keeping provided options', function (done) {
     open_wsdl(
-      testHelpers.toTestUrl(path.resolve(__dirname, 'wsdl/recursive/file.wsdl')),
+      testHelpers.toTestUrl(path.resolve(import.meta.dir, 'wsdl/recursive/file.wsdl')),
       {
         httpClient: mockHttpClient,
         ignoredNamespaces: {
@@ -51,7 +51,7 @@ describe(__filename, function () {
           return done(err);
         }
 
-        def._includesWsdl.forEach(function (currentWsdl, index) {
+        (def as any)._includesWsdl.forEach(function (currentWsdl: any, index: number) {
           assert.deepEqual(def.options, currentWsdl.options);
         });
 
@@ -61,25 +61,25 @@ describe(__filename, function () {
   });
 
   it('should parse recursive wsdls with element references', function (done) {
-    open_wsdl(testHelpers.toTestUrl(path.resolve(__dirname, 'wsdl/recursive_with_ref.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
+    open_wsdl(testHelpers.toTestUrl(path.resolve(import.meta.dir, 'wsdl/recursive_with_ref.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
       assert.ifError(err);
-      var desc = def.definitions.portTypes.CloudSignService.description(def.definitions);
+      const desc = (def.definitions.portTypes as any).CloudSignService.description(def.definitions);
       assert.equal(desc.AddSignature.input.properties.property && desc.AddSignature.input.properties.property.value2, 'string');
       done();
     });
   });
 
   it('should parse recursive wsdls with element references and complex types named same as references', function (done) {
-    open_wsdl(testHelpers.toTestUrl(path.resolve(__dirname, 'wsdl/recursive_with_ref2.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
+    open_wsdl(testHelpers.toTestUrl(path.resolve(import.meta.dir, 'wsdl/recursive_with_ref2.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
       assert.ifError(err);
-      var desc = def.definitions.portTypes.CloudSignService.description(def.definitions);
+      const desc = (def.definitions.portTypes as any).CloudSignService.description(def.definitions);
       assert.equal(desc.AddSignature.input.properties.property && desc.AddSignature.input.properties.property.value2, 'string');
       done();
     });
   });
 
   it('should parse complex wsdls', function (done) {
-    open_wsdl(testHelpers.toTestUrl(path.resolve(__dirname, 'wsdl/complex/registration-common.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
+    open_wsdl(testHelpers.toTestUrl(path.resolve(import.meta.dir, 'wsdl/complex/registration-common.wsdl')), { httpClient: mockHttpClient }, function (err, def) {
       if (err) {
         return done(err);
       }
@@ -97,7 +97,7 @@ describe(__filename, function () {
         return done('Unable to find "registerUserRequest" schema object');
       }
 
-      var requestBody = {
+      const requestBody = {
         id: 'ID00000000000000000000000000000000',
         lastName: 'Doe',
         firstName: 'John',
@@ -116,7 +116,7 @@ describe(__filename, function () {
         },
       };
 
-      var requestAsXML = def.objectToDocumentXML('registerUserRequest', requestBody, 'msg', 'http://test-soap.com/api/registration/messages', 'registerUserRequest');
+      const requestAsXML = def.objectToDocumentXML('registerUserRequest', requestBody, 'msg', 'http://test-soap.com/api/registration/messages', 'registerUserRequest');
 
       /*
       Expected XML:

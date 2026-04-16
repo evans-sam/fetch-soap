@@ -1,28 +1,29 @@
-const fs = require('fs');
-const soap = require('../');
-const path = require('path');
-var http = require('http');
-var jsdiff = require('diff');
-var assert = require('assert');
-var testHelpers = require('./test-helpers');
+import { describe, it, beforeAll } from 'bun:test';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as http from 'node:http';
+import * as assert from 'node:assert';
+import * as jsdiff from 'diff';
+import * as soap from '../src/soap.js';
+import * as testHelpers from './test-helpers.js';
 
-let server;
-let port;
+let server: http.Server;
+let port: number;
 
-function normalizeWhiteSpace(raw) {
-  var normalized = raw.replace(/\r\n|\r|\n/g, ''); // strip line endings
+function normalizeWhiteSpace(raw: string) {
+  let normalized = raw.replace(/\r\n|\r|\n/g, ''); // strip line endings
   normalized = normalized.replace(/\s\s+/g, ' '); // convert whitespace to spaces
   normalized = normalized.replace(/> </g, '><'); // get rid of spaces between elements
   return normalized;
 }
 
-var requestContext = {
+const requestContext: any = {
   //set these two within each test
   expectedRequest: null,
   responseToSend: null,
   doneHandler: null,
-  requestHandler: function (req, res) {
-    var chunks = [];
+  requestHandler: function (req: http.IncomingMessage, res: http.ServerResponse) {
+    const chunks: string[] = [];
     req.on('data', function (chunk) {
       // ignore eol on sample files.
       chunks.push(chunk.toString().replace(/\r?\n$/m, ''));
@@ -30,14 +31,14 @@ var requestContext = {
     req.on('end', function () {
       if (!requestContext.expectedRequest) return res.end(requestContext.responseToSend);
 
-      var actualRequest = normalizeWhiteSpace(chunks.join(''));
-      var expectedRequest = normalizeWhiteSpace(requestContext.expectedRequest);
+      const actualRequest = normalizeWhiteSpace(chunks.join(''));
+      const expectedRequest = normalizeWhiteSpace(requestContext.expectedRequest);
 
       if (actualRequest !== expectedRequest) {
-        var diff = jsdiff.diffChars(actualRequest, expectedRequest);
-        var comparison = '';
-        diff.forEach(function (part) {
-          var color = 'grey';
+        const diff = jsdiff.diffChars(actualRequest, expectedRequest);
+        let comparison = '';
+        diff.forEach(function (part: any) {
+          let color = 'grey';
           if (part.added) {
             color = 'green';
           }
@@ -66,16 +67,16 @@ var requestContext = {
 };
 
 describe('SOAP Client schema does not change', () => {
-  before(function (done) {
+  beforeAll(function (done) {
     server = http.createServer(requestContext.requestHandler);
-    server.listen(0, function (e) {
+    server.listen(0, function (e?: Error) {
       if (e) return done(e);
-      port = server.address().port;
+      port = (server.address() as { port: number }).port;
       done();
     });
   });
   it('should not change the schema', (done) => {
-    const tpath = path.join(__dirname, 'request-response-samples', 'RetrieveFareQuoteDateRange__should_handle_child_namespaces');
+    const tpath = path.join(import.meta.dir, 'request-response-samples', 'RetrieveFareQuoteDateRange__should_handle_child_namespaces');
     const wsdlPath = path.resolve(tpath, 'soap.wsdl');
     const requestJSON = require(path.resolve(tpath, 'request.json'));
     const requestXML = fs.readFileSync(path.resolve(tpath, 'request.xml'), { encoding: 'utf8' });
@@ -87,7 +88,7 @@ describe('SOAP Client schema does not change', () => {
     requestContext.responseToSend = responseXML;
 
     const wsdlUrl = testHelpers.toTestUrl(wsdlPath);
-    const options = testHelpers.getTestOptions(__dirname, { disableCache: true });
+    const options = testHelpers.getTestOptions(import.meta.dir, { disableCache: true });
 
     soap.createClient(
       wsdlUrl,
@@ -112,10 +113,10 @@ describe('SOAP Client schema does not change', () => {
   });
 });
 
-function cbCaller(client, methodName, requestJSON, responseJSON, responseSoapHeaderJSON, options, attachmentParts, done) {
+function cbCaller(client: any, methodName: string, requestJSON: any, responseJSON: any, responseSoapHeaderJSON: any, options: any, attachmentParts: any, done: any) {
   client[methodName](
     requestJSON,
-    function (err, json, body, soapHeader) {
+    function (err: any, json: any, body: any, soapHeader: any) {
       if (requestJSON) {
         if (err) {
           assert.notEqual('undefined: undefined', err.message);
