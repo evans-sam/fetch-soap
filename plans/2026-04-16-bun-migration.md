@@ -11,8 +11,9 @@
 **Spec:** [specs/2026-04-16-bun-migration-design.md](../specs/2026-04-16-bun-migration-design.md)
 
 **Assumptions at plan execution time:**
-- Small unblock PR has already landed on master, making `npm test` green (tests renamed to `.cjs` or equivalent).
-- PR #9 / [fetch-soap#34](https://github.com/evans-sam/fetch-soap/pull/34) has already landed, adding a test job to `.github/workflows/pr.yml`.
+- PR #9 / [fetch-soap#34](https://github.com/evans-sam/fetch-soap/pull/34) has landed, adding a mocha-based test job to `.github/workflows/pr.yml`. Additionally [fetch-soap#36](https://github.com/evans-sam/fetch-soap/pull/36) landed adding an `npm audit` security job.
+- The mocha test suite has **never actually run** on this codebase (since `96cc6bf`, the initial fetch-soap commit). The compiled `lib/` has extensionless ESM imports that Node's resolver rejects at runtime. This is tracked separately as [fetch-soap#43](https://github.com/evans-sam/fetch-soap/issues/43) and is out of scope for this migration. Consequence for this plan: there is no "mocha baseline" to capture in Task 1; we use static per-file `it(` counts instead.
+- No unblock PR is being landed first. Under the originally-considered Q5 option A, an unblock would precede this migration; we pivoted to Q5 option B (this Bun migration supersedes both the unblock and the existing mocha-based test job).
 - Working from a clean branch off master, inside a git worktree.
 - Bun is installed locally. If not: `curl -fsSL https://bun.sh/install | bash`.
 
@@ -136,20 +137,22 @@ Notes:
 mkdir -p /tmp/bun-migration-baseline
 ```
 
-- [ ] **Step 2: Capture the mocha test count from master**
+- [ ] **Step 2: Capture static per-file `it(` counts from master**
 
-Run from master (or the most recent unblock-branch tip that has passing tests):
+Tests have never run on master (see [fetch-soap#43](https://github.com/evans-sam/fetch-soap/issues/43)), so there's no runtime baseline to capture. Instead, record the number of `it(` call sites per file — a rough upper bound on test count. Parameterized patterns like `[...].forEach(meta => describe(...))` undercount against this metric, so it's a floor check, not equality.
 
 ```bash
 git fetch origin
 git worktree add /tmp/bun-migration-baseline/master-repo origin/master
 cd /tmp/bun-migration-baseline/master-repo
-npm ci
-npx mocha --timeout 15000 --exit test/*-test.js test/security/*.js --reporter json 2>&1 > /tmp/bun-migration-baseline/mocha-output.json
-grep -E '"passes"|"failures"|"tests"' /tmp/bun-migration-baseline/mocha-output.json | head -5
+for f in test/*-test.js test/security/*.js; do
+  count=$(grep -cE '^\s*(it|it\.only|it\.skip)\(' "$f")
+  echo "$f $count"
+done | tee /tmp/bun-migration-baseline/it-counts.txt
+awk '{sum += $2} END {print "TOTAL:", sum}' /tmp/bun-migration-baseline/it-counts.txt | tee -a /tmp/bun-migration-baseline/it-counts.txt
 ```
 
-Expected: prints `"tests": <N>`, `"passes": <N>`, `"failures": 0`. Record `<N>` — this is the target test count. If failures > 0 even on the unblock branch, STOP — the unblock hasn't actually restored the suite.
+Expected: prints per-file counts and a TOTAL line. Record the TOTAL as `<N_STATIC>`. Also note per-file counts — they become the per-file check during rewrite tasks (6-11).
 
 - [ ] **Step 3: Capture the lib/ build output as baseline**
 
@@ -858,13 +861,15 @@ bun test
 
 Expected: auto-discovers all `*.test.ts` files in `test/`. All tests pass.
 
-- [ ] **Step 2: Count tests and compare to baseline**
+- [ ] **Step 2: Count tests and compare to static baseline**
 
 ```bash
 bun test 2>&1 | tail -5
 ```
 
-Expected summary line like `<N> pass, 0 fail`. Compare `<N>` to the mocha baseline test count from Task 1 Step 2. They must match. If fewer, a test was silently skipped or dropped — audit before proceeding.
+Expected summary line like `<N> pass, 0 fail`. Compare `<N>` to the `TOTAL` recorded in Task 1 Step 2 (the static `it(` count floor).
+
+`<N>` should be **≥ TOTAL**. Parameterized tests (`[...].forEach(meta => describe(...))`) can legitimately multiply the runtime count beyond the static count, so `>` is fine. `<` means a test was dropped during migration — audit before proceeding by comparing per-file counts against `/tmp/bun-migration-baseline/it-counts.txt`.
 
 - [ ] **Step 3: Verify lib/ build still matches baseline**
 
@@ -1009,14 +1014,30 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: <BUN_VERSION>   # match packageManager field in package.json
-      - run: bun install --frozen-lockfile
+      - run: bun ci
       - run: bun test
-      - run: bun run build
+      - run: bun run build         # sanity-check tsc still passes
       - run: bun run lint
       - run: bun run format:check
+
+  # Fails the PR on high/critical CVEs in production dependencies.
+  # Replaces the npm audit job added in #36.
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: <BUN_VERSION>
+      - run: bun audit --prod --audit-level=high
 ```
 
 Substitute `<BUN_VERSION>` with the exact version recorded in Task 2 Step 1 (the same value pinned in the `packageManager` field). Pinning explicitly keeps CI deterministic and independent of setup-bun version-file parsing.
+
+`bun ci` is equivalent to `bun install --frozen-lockfile` but fails with a clearer error if `package.json` is out of sync with `bun.lock`. Idiomatic for CI.
+
+`bun audit --prod --audit-level=high` replaces the `npm audit --omit=dev --audit-level=high` job added by [fetch-soap#36](https://github.com/evans-sam/fetch-soap/pull/36) — same posture (production-only, high severity floor), now reading from `bun.lock`.
 
 - [ ] **Step 3: Commit**
 
