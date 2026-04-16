@@ -59,8 +59,8 @@ export interface IXmlNs {
 
 export class Element {
   public readonly allowedChildren?: { [k: string]: typeof Element } = {};
-  public $name?: string;
-  public $targetNamespace?;
+  declare public $name?: string;
+  declare public $targetNamespace?;
   public children: Element[] = [];
   public ignoredNamespaces;
   public strict: boolean;
@@ -201,14 +201,14 @@ export class UnexpectedElement extends Element {
 
 export class ElementElement extends Element {
   public readonly allowedChildren = buildAllowedChildren(['annotation', 'complexType', 'simpleType']);
-  public $minOccurs?: string;
-  public $maxOccurs?: string;
-  public $type?: string;
-  public $ref?: string;
+  declare public $minOccurs?: string;
+  declare public $maxOccurs?: string;
+  declare public $type?: string;
+  declare public $ref?: string;
   public targetNSAlias?: string;
   public targetNamespace?: string;
-  public $lookupType?: string;
-  public $lookupTypes?: any[];
+  declare public $lookupType?: string;
+  declare public $lookupTypes?: any[];
 
   public description(definitions: DefinitionsElement, xmlns?: IXmlNs) {
     let element = {};
@@ -327,8 +327,8 @@ export class InputElement extends Element {
   public readonly allowedChildren = buildAllowedChildren(['body', 'documentation', 'header', 'SecuritySpecRef']);
   public use: string;
   public encodingStyle: string;
-  public $type: string;
-  public $lookupType: string;
+  declare public $type: string;
+  declare public $lookupType: string;
   public targetNSAlias?: string;
   public targetNamespace?: string;
   public parts?;
@@ -350,7 +350,7 @@ export class OutputElement extends Element {
   public targetNamespace?: string;
   public use?: string;
   public encodingStyle?: string;
-  public $lookupTypes;
+  declare public $lookupTypes;
 
   public addChild(child: Element) {
     if (child instanceof BodyElement) {
@@ -379,7 +379,7 @@ export class SimpleTypeElement extends Element {
 
 export class RestrictionElement extends Element {
   public readonly allowedChildren = buildAllowedChildren(['all', 'choice', 'enumeration', 'sequence', 'attribute']);
-  public $base: string;
+  declare public $base: string;
 
   public description(definitions?: DefinitionsElement, xmlns?: IXmlNs) {
     const children = this.children;
@@ -435,7 +435,7 @@ export class RestrictionElement extends Element {
 
 export class ExtensionElement extends Element {
   public readonly allowedChildren = buildAllowedChildren(['all', 'choice', 'sequence']);
-  public $base: string;
+  declare public $base: string;
 
   public description(definitions: DefinitionsElement, xmlns?: IXmlNs) {
     let desc = {};
@@ -556,8 +556,8 @@ export class SequenceElement extends Element {
 
 export class AttributeElement extends Element {
   public static Symbol = Symbol('$attributes');
-  public $type?: string;
-  public $use?: string;
+  declare public $type?: string;
+  declare public $use?: string;
 
   //eslint-disable-next-line @typescript-eslint/no-unused-vars
   public description(definitions: DefinitionsElement) {
@@ -790,7 +790,7 @@ export class SchemaElement extends Element {
   public types: { [name: string]: SimpleTypeElement } = {};
   public elements: { [name: string]: ElementElement } = {};
   public includes: IInclude[] = [];
-  public $elementFormDefault;
+  declare public $elementFormDefault;
 
   public merge(source: SchemaElement) {
     assert(source instanceof SchemaElement);
@@ -869,8 +869,8 @@ export class OperationElement extends Element {
   public outputSoap = null;
   public style = '';
   public soapAction = '';
-  public $soapAction?: string;
-  public $style?: string;
+  declare public $soapAction?: string;
+  declare public $style?: string;
 
   public addChild(child) {
     if (child instanceof OperationElement) {
@@ -967,7 +967,7 @@ export class BindingElement extends Element {
   public transport = '';
   public style = '';
   public methods: { [name: string]: OperationElement } = {};
-  public $type?: string;
+  declare public $type?: string;
 
   public addChild(child) {
     if (child.name === 'binding') {
@@ -1127,20 +1127,20 @@ export class DefinitionsElement extends Element {
 }
 
 export class BodyElement extends Element {
-  public $use?: string;
-  public $encodingStyle?: string;
+  declare public $use?: string;
+  declare public $encodingStyle?: string;
 }
 
 export class IncludeElement extends Element {
-  public $schemaLocation?;
-  public $location?;
-  public $namespace?;
+  declare public $schemaLocation?;
+  declare public $location?;
+  declare public $namespace?;
 }
 
 export class ImportElement extends Element {
-  public $schemaLocation?;
-  public $location?;
-  public $namespace?;
+  declare public $schemaLocation?;
+  declare public $location?;
+  declare public $namespace?;
 }
 
 const ElementTypeMap: {
