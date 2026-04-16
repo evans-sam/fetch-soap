@@ -1,6 +1,6 @@
 import * as _ from 'lodash';
-import { IHeaders, ISecurity } from '../types';
-import { stringToBase64 } from '../utils';
+import { IHeaders, ISecurity } from '../types.js';
+import { stringToBase64 } from '../utils.js';
 
 export class BasicAuthSecurity implements ISecurity {
   private _username: string;

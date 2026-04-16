@@ -4,13 +4,13 @@
  */
 
 import debugBuilder from 'debug';
-import EventEmitter from 'eventemitter3';
+import { EventEmitter } from 'eventemitter3';
 import * as _ from 'lodash';
-import { HttpClient } from './http';
-import { IHeaders, IHttpClient, IMTOMAttachments, IOptions, ISecurity, SoapMethod, SoapMethodAsync } from './types';
-import { assert, findPrefix } from './utils';
-import { WSDL } from './wsdl';
-import { IPort, OperationElement, ServiceElement } from './wsdl/elements';
+import { HttpClient } from './http.js';
+import { IHeaders, IHttpClient, IMTOMAttachments, IOptions, ISecurity, SoapMethod, SoapMethodAsync } from './types.js';
+import { assert, findPrefix } from './utils.js';
+import { WSDL } from './wsdl/index.js';
+import { IPort, OperationElement, ServiceElement } from './wsdl/elements.js';
 
 /**
  * Read a ReadableStream to string

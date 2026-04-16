@@ -9,11 +9,11 @@ import debugBuilder from 'debug';
 import * as _ from 'lodash';
 import * as sax from 'sax';
 import stripBom from 'strip-bom';
-import { HttpClient } from '../http';
-import { NamespaceContext } from '../nscontext';
-import { IOptions } from '../types';
-import { assert, findPrefix, splitQName, TNS_PREFIX, xmlEscape } from '../utils';
-import * as elements from './elements';
+import { HttpClient } from '../http.js';
+import { NamespaceContext } from '../nscontext.js';
+import { IOptions } from '../types.js';
+import { assert, findPrefix, splitQName, TNS_PREFIX, xmlEscape } from '../utils.js';
+import * as elements from './elements.js';
 
 const debug = debugBuilder('fetch-soap');
 

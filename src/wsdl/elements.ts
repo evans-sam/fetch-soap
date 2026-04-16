@@ -1,7 +1,7 @@
 import debugBuilder from 'debug';
 import * as _ from 'lodash';
-import { IWsdlBaseOptions } from '../types';
-import { assert, splitQName, TNS_PREFIX } from '../utils';
+import { IWsdlBaseOptions } from '../types.js';
+import { assert, splitQName, TNS_PREFIX } from '../utils.js';
 
 const debug = debugBuilder('fetch-soap');
 
