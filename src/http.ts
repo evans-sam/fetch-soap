@@ -244,8 +244,8 @@ export class HttpClient implements IHttpClient {
       fetchOptions.signal = controller.signal;
     }
 
-    const responsePromise = fetchFn(options.url, fetchOptions)
-      .then(async (response) => {
+    const responsePromise = fetchFn(options.url, fetchOptions).then(
+      async (response) => {
         if (timeoutId) clearTimeout(timeoutId);
 
         const headersObj = this.headersToObject(response.headers);
@@ -315,12 +315,13 @@ export class HttpClient implements IHttpClient {
         } else {
           return handleBody();
         }
-      })
-      .catch((err) => {
+      },
+      (err) => {
         if (timeoutId) clearTimeout(timeoutId);
         callback(err);
         throw err;
-      });
+      },
+    );
 
     // Swallow rejection for consumers who don't await the returned promise.
     // The callback is the primary error channel; re-throwing inside the catch
