@@ -71,7 +71,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         called = true;
         done();
       });
-      assert(!called);
+      assert.ok(!called);
     });
 
     it('should allow customization of httpClient', function (done) {
@@ -298,14 +298,14 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
                     assert.equal(body.parts.length, 2);
 
                     const dataHeaders = body.parts[0];
-                    assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+                    assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
                     assert.equal(dataHeaders['Content-ID'], contentType.start);
 
                     const attachmentHeaders = body.parts[1];
                     assert.equal(attachmentHeaders['Content-Type'], attachment.mimetype);
                     assert.equal(attachmentHeaders['Content-Transfer-Encoding'], 'binary');
                     assert.equal(attachmentHeaders['Content-ID'], '<' + attachment.contentId + '>');
-                    assert(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
+                    assert.ok(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
 
                     server!.close();
                     done();
@@ -384,7 +384,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
               {},
               function (error: any, response: any, body: any, soapHeader: any, rawRequest: any) {
                 assert.ifError(error);
-                assert(body.contentType.indexOf('action') > -1);
+                assert.ok(body.contentType.indexOf('action') > -1);
                 done();
               },
               { attachments: [attachment] },
@@ -418,7 +418,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
                 assert.equal(body.parts.length, 1);
 
                 const dataHeaders = body.parts[0];
-                assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+                assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
                 assert.equal(dataHeaders['Content-ID'], contentType.start);
                 done();
               },
@@ -787,7 +787,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
                 assert.ok(client.lastRequest);
                 assert.equal(client.lastRequestHeaders['Content-Type'], 'application/soap+xml; charset=utf-8; action="MyOperation"');
                 assert.notEqual(client.lastRequest.indexOf('xmlns:soap=\"http://www.w3.org/2003/05/soap-envelope\"'), -1);
-                assert(!client.lastRequestHeaders.SOAPAction);
+                assert.ok(!client.lastRequestHeaders.SOAPAction);
                 done();
               },
               null,
@@ -1861,7 +1861,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
           called = true;
           done();
         });
-        assert(!called);
+        assert.ok(!called);
       });
 
       it('should allow customization of httpClient', function (done) {
