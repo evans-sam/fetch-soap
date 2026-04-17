@@ -54,9 +54,9 @@ Expected: no errors. Dependencies resolve from `bun.lock`.
 bun test 2>&1 | tail -10
 ```
 
-Expected: `150 pass / 18 skip / 0 fail` (or very close — minor variations in pass count are fine; what matters is 0 fail and 18 skip).
+Expected: `442 pass / 18 skip / 0 fail` (or very close — minor variations in pass count are fine; what matters is 0 fail and 18 skip).
 
-Record this number. After Task 5, the expected counts are 166 pass / 2 skip / 0 fail.
+Record this number. After Task 5, the expected counts are 458 pass / 2 skip / 0 fail.
 
 - [ ] **Step 4: Confirm baseline typecheck and lint**
 
@@ -281,7 +281,7 @@ Expected: no errors. The promise-chain refactor shouldn't introduce any type cha
 bun test 2>&1 | tail -5
 ```
 
-Expected: `150 pass / 18 skip / 0 fail` (same as baseline — unchanged). The src fix shouldn't affect any currently-passing test since none of them throw from user callbacks.
+Expected: `442 pass / 18 skip / 0 fail` (same as baseline — unchanged). The src fix shouldn't affect any currently-passing test since none of them throw from user callbacks.
 
 - [ ] **Step 5: Commit**
 
@@ -343,7 +343,7 @@ grep -n "^\s*assert(" test/client.test.ts
 
 Expected output (exact):
 
-```
+```text
 74:      assert(!called);
 301:                    assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
 308:                    assert(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
@@ -501,7 +501,7 @@ Expected: no errors.
 bun test 2>&1 | tail -5
 ```
 
-Expected: `150 pass / 18 skip / 0 fail`. Still identical to baseline — the skipped tests remain skipped, and the non-skipped tests don't touch the replaced lines.
+Expected: `442 pass / 18 skip / 0 fail`. Still identical to baseline — the skipped tests remain skipped, and the non-skipped tests don't touch the replaced lines.
 
 - [ ] **Step 12: Commit**
 
@@ -728,7 +728,7 @@ Expected: no errors.
 bun test 2>&1 | tail -5
 ```
 
-Expected: `150 pass / 18 skip / 0 fail`. The two rewritten tests are still `it.skip`, so neither runs.
+Expected: `442 pass / 18 skip / 0 fail`. The two rewritten tests are still `it.skip`, so neither runs.
 
 - [ ] **Step 7: Commit**
 
@@ -782,7 +782,7 @@ grep -n "it\.skip" test/client.test.ts
 
 Expected output (exact):
 
-```
+```text
 66:    it.skip('should issue async callback for cached wsdl', function (done) {
 163:    it.skip('should allow passing in XML strings', function (done) {
 254:      it.skip('should send binary attachments using XOP + MTOM', function (done) {
@@ -925,7 +925,7 @@ grep -n "it\.skip" test/client.test.ts
 
 Expected output (exact):
 
-```
+```text
 2150:  it.skip('should add namespace to array of objects', function (done) {
 2231:  it.skip('should return the saxStream (Node.js-specific, not supported in universal mode)', (done) => {
 ```
@@ -938,7 +938,7 @@ If any other `it.skip` remain, flip them now.
 bun test 2>&1 | tail -15
 ```
 
-Expected best-case: `166 pass / 2 skip / 0 fail`. Stop and proceed directly to Task 7 (final verification).
+Expected best-case: `458 pass / 2 skip / 0 fail`. Stop and proceed directly to Task 7 (final verification).
 
 Expected likely-case: some MTOM tests fail. If one or more of the three MTOM tests (`should send binary attachments using XOP + MTOM`, `Should preserve SOAP 1.2 "action" header when sending MTOM request`, `Should send MTOM request even without attachment`) fail, continue to Task 6.
 
@@ -947,7 +947,7 @@ Expected unlikely-case: non-MTOM tests fail. If so, capture the failure, stop, a
 - If a bare `assert(x)` you missed — grep for `^\s*assert(` again.
 - If the XML-strings rewrite captures `lastRequest` before it's set — add a `console.log` inside the MyOperation callback and re-run with `--timeout 15000`.
 
-- [ ] **Step 12: If Step 11 passed with 166/2/0, commit and skip Task 6**
+- [ ] **Step 12: If Step 11 passed with 458/2/0, commit and skip Task 6**
 
 ```bash
 git add test/client.test.ts
@@ -964,7 +964,7 @@ Two it.skip sites remain (lines 2150, 2231) — both outside the
 forEach wrapper and out of scope for #46 (pre-existing namespace-
 array-ordering concern and a Node-only saxStream API respectively).
 
-Final count: 166 pass / 2 skip / 0 fail.
+Final count: 458 pass / 2 skip / 0 fail.
 
 Closes #46.
 EOF
@@ -1077,7 +1077,7 @@ Expected: all six MTOM test runs pass (three tests × two streaming/non-streamin
 bun test 2>&1 | tail -5
 ```
 
-Expected: `166 pass / 2 skip / 0 fail`.
+Expected: `458 pass / 2 skip / 0 fail`.
 
 - [ ] **Step 7: Commit**
 
@@ -1117,7 +1117,7 @@ Expected: commit succeeds.
 bun test 2>&1 | tail -10
 ```
 
-Expected: `166 pass / 2 skip / 0 fail`. If the count differs, stop and investigate.
+Expected: `458 pass / 2 skip / 0 fail`. If the count differs, stop and investigate.
 
 - [ ] **Step 2: Typecheck**
 
@@ -1143,7 +1143,7 @@ git log --oneline master..HEAD
 
 Expected output (4 or 5 commits depending on whether Task 6 ran):
 
-```
+```text
 <sha> fix(http): pass Buffer/Uint8Array attachment bodies through as bytes      [conditional]
 <sha> test(client): unskip integration tests now that root causes are fixed
 <sha> test(client): rewrite broken XML-strings tests to verify _xml substitution
@@ -1166,7 +1166,7 @@ gh pr create --title "fix: unblock 7 skipped integration tests in client.test.ts
 - Rewrites the two `should allow passing in XML strings` tests. They were phantom-passing in upstream node-soap via a chained `.close(() => done())` that fired `done` before the SOAP callback. Rewrite verifies what `_xml` actually does: substitute the raw string into `client.lastRequest`.
 - Unskips seven tests (eight `it.skip` sites; `should allow passing in XML strings` has sync + async variants). Each runs twice for streaming and non-streaming variants → 16 new passing tests.
 
-Final count: **166 pass / 2 skip / 0 fail** (the two remaining skips are the pre-existing out-of-scope sites on lines 2150 and 2231).
+Final count: **458 pass / 2 skip / 0 fail** (the two remaining skips are the pre-existing out-of-scope sites on lines 2150 and 2231).
 
 Related: #43 (already fixed — this issue can now close).
 
@@ -1174,7 +1174,7 @@ Closes #46.
 
 ## Test plan
 
-- [ ] `bun test` — 166 pass / 2 skip / 0 fail
+- [ ] `bun test` — 458 pass / 2 skip / 0 fail
 - [ ] `bun run build` — no errors
 - [ ] `bun run lint` — no new errors
 - [ ] CI passes on this branch
@@ -1188,7 +1188,7 @@ Expected: PR URL returned. Paste it at the end of your summary.
 
 Summarize in your final message:
 
-- Final test count (166 pass / 2 skip / 0 fail).
+- Final test count (458 pass / 2 skip / 0 fail).
 - Whether Task 6 ran (yes means MTOM encoding bug was real and fixed; no means MTOM tests passed under just the src/http.ts + test-layer fixes).
 - PR URL.
 

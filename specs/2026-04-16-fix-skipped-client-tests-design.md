@@ -173,7 +173,7 @@ If the binary-attachments test still fails, the most likely cause is `textEncode
 
 After all edits:
 
-1. `bun test` → expected 166 pass / 2 skip / 0 fail. (The 2 remaining skips are the out-of-scope sites listed above.)
+1. `bun test` → expected 458 pass / 2 skip / 0 fail. (The 2 remaining skips are the out-of-scope sites listed above.)
 2. `bun run build` → TypeScript compiles with no new errors.
 3. `bun run lint` → no new eslint issues.
 
@@ -182,9 +182,9 @@ After all edits:
 Single PR, commits ordered by concern for review tractability:
 
 1. `fix(http): don't double-invoke callback when user callback throws` — src/http.ts restructure only.
-2. `test(client): replace bare assert() with assert.ok() for ESM compat` — seven sites converted; no unskipping; existing 150 passes unchanged.
+2. `test(client): replace bare assert() with assert.ok() for ESM compat` — seven sites converted; no unskipping; existing passes unchanged.
 3. `test(client): rewrite broken XML-strings tests to verify _xml substitution` — two rewrites; still skipped at this point (to keep the diff small and reviewable before unskipping).
-4. `test(client): unskip integration tests now that root causes are fixed` — flip 8 `it.skip` → `it`; test count moves 150 → 166 (each flipped site runs twice, under streaming and non-streaming variants, so 8 flips → 16 new passes).
+4. `test(client): unskip integration tests now that root causes are fixed` — flip 8 `it.skip` → `it`; test count moves 442 → 458 (each flipped site runs twice, under streaming and non-streaming variants, so 8 flips → 16 new passes).
 5. (Conditional) `fix(http): pass Buffer/Uint8Array attachment bodies through as bytes` — only if step 4 reveals the MTOM binary encoding bug.
 
 PR title: `fix: unblock 7 skipped integration tests in client.test.ts (closes #46)`.
