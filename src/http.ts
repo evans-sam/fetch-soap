@@ -316,6 +316,15 @@ export class HttpClient implements IHttpClient {
         throw err;
       });
 
+    // Swallow rejection for consumers who don't await the returned promise.
+    // The callback is the primary error channel; re-throwing inside the catch
+    // above preserves the rejection for consumers who DO await, but without
+    // this no-op handler the rejection surfaces as an unhandled rejection
+    // (harmless under Node + mocha, but Bun treats it as a test failure).
+    responsePromise.catch(() => {
+      /* handled by callback */
+    });
+
     return responsePromise;
   }
 
