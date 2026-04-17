@@ -85,15 +85,15 @@ No other call sites need changes.
 
 Seven call sites, all converted to `assert.ok(...)`:
 
-| Line | Before | Context |
-|------|--------|---------|
-| 74   | `assert(!called)`                                                             | cached-wsdl callback test, top-level |
-| 301  | `assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1)`     | binary-attachments MTOM callback |
-| 308  | `assert(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1)` | binary-attachments MTOM callback |
-| 387  | `assert(body.contentType.indexOf('action') > -1)`                             | SOAP 1.2 action-header MTOM callback |
-| 421  | `assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1)`     | MTOM-without-attachment callback |
-| 790  | `assert(!client.lastRequestHeaders.SOAPAction)`                               | soap12 headers callback |
-| 1864 | `assert(!called)`                                                             | cached-wsdl async-promise test, top-level |
+| Line | Before                                                                           | Context                                   |
+| ---- | -------------------------------------------------------------------------------- | ----------------------------------------- |
+| 74   | `assert(!called)`                                                                | cached-wsdl callback test, top-level      |
+| 301  | `assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1)`        | binary-attachments MTOM callback          |
+| 308  | `assert(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1)` | binary-attachments MTOM callback          |
+| 387  | `assert(body.contentType.indexOf('action') > -1)`                                | SOAP 1.2 action-header MTOM callback      |
+| 421  | `assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1)`        | MTOM-without-attachment callback          |
+| 790  | `assert(!client.lastRequestHeaders.SOAPAction)`                                  | soap12 headers callback                   |
+| 1864 | `assert(!called)`                                                                | cached-wsdl async-promise test, top-level |
 
 The `assert.ok(body.includes(...), 'message')` call at line 266 already uses `assert.ok` and needs no change.
 
@@ -118,10 +118,7 @@ it('should allow passing in XML strings', function (done) {
       req.on('end', () => {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/xml');
-        res.end(
-          "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" +
-            '<soapenv:Body/></soapenv:Envelope>',
-        );
+        res.end("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" + '<soapenv:Body/></soapenv:Envelope>');
       });
     })
     .listen(port, '127.0.0.1', () => {
@@ -132,10 +129,7 @@ it('should allow passing in XML strings', function (done) {
           assert.ifError(err);
           client.MyOperation({ _xml: xmlStr }, (err2) => {
             assert.ifError(err2);
-            assert.ok(
-              client.lastRequest.includes(xmlStr),
-              'lastRequest should contain the raw _xml content',
-            );
+            assert.ok(client.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
             server.close();
             done();
           });

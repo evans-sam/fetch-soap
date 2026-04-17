@@ -173,10 +173,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
           req.on('end', () => {
             res.statusCode = 200;
             res.setHeader('Content-Type', 'text/xml');
-            res.end(
-              "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" +
-                '<soapenv:Body/></soapenv:Envelope>',
-            );
+            res.end("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" + '<soapenv:Body/></soapenv:Envelope>');
           });
         })
         .listen(port, hostname, function () {
@@ -188,10 +185,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
               assert.ok(client);
               client.MyOperation({ _xml: xmlStr }, function (err2) {
                 assert.ifError(err2);
-                assert.ok(
-                  client.lastRequest.includes(xmlStr),
-                  'lastRequest should contain the raw _xml content',
-                );
+                assert.ok(client.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
                 server.close();
                 done();
               });
@@ -1928,10 +1922,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
             req.on('end', () => {
               res.statusCode = 200;
               res.setHeader('Content-Type', 'text/xml');
-              res.end(
-                "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" +
-                  '<soapenv:Body/></soapenv:Envelope>',
-              );
+              res.end("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" + '<soapenv:Body/></soapenv:Envelope>');
             });
           })
           .listen(port, hostname, function () {
@@ -1944,10 +1935,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
                 return client.MyOperationAsync({ _xml: xmlStr });
               })
               .then(function () {
-                assert.ok(
-                  capturedClient.lastRequest.includes(xmlStr),
-                  'lastRequest should contain the raw _xml content',
-                );
+                assert.ok(capturedClient.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
                 server.close();
                 done();
               })

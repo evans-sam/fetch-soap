@@ -28,6 +28,7 @@ No new files created. No deletions.
 Confirm the starting state so every later step has a trustworthy anchor.
 
 **Files:**
+
 - Read-only: `test/client.test.ts`, `src/http.ts`, `package.json`
 
 - [ ] **Step 1: Confirm clean working tree on the correct branch**
@@ -72,6 +73,7 @@ Expected: both complete successfully with no errors.
 The `.catch()` after `.then()` in `HttpClient.request()` catches throws from inside the user-supplied callback and re-invokes the callback with that thrown error — double-fire. Switch to `.then(onFulfilled, onRejected)` so `onRejected` only sees real fetch-layer rejections.
 
 **Files:**
+
 - Modify: `src/http.ts:247-323`
 
 - [ ] **Step 1: Verify the exact current code block to replace**
@@ -101,166 +103,166 @@ If the lines don't match, stop and re-read `src/http.ts` in full before proceedi
 Use Edit to replace this exact block:
 
 ```ts
-    const responsePromise = fetchFn(options.url, fetchOptions)
-      .then(async (response) => {
-        if (timeoutId) clearTimeout(timeoutId);
+const responsePromise = fetchFn(options.url, fetchOptions)
+  .then(async (response) => {
+    if (timeoutId) clearTimeout(timeoutId);
 
-        const headersObj = this.headersToObject(response.headers);
+    const headersObj = this.headersToObject(response.headers);
 
-        // Determine how to read the response body
-        let responseData: any;
-        if (this.options.parseReponseAttachments) {
-          responseData = await response.arrayBuffer();
-        } else {
-          responseData = await response.text();
+    // Determine how to read the response body
+    let responseData: any;
+    if (this.options.parseReponseAttachments) {
+      responseData = await response.arrayBuffer();
+    } else {
+      responseData = await response.text();
+    }
+
+    const res: IHttpResponse = {
+      status: response.status,
+      statusText: response.statusText,
+      headers: headersObj,
+      data: responseData,
+      requestHeaders: options.headers,
+    };
+
+    const handleBody = (body?: string) => {
+      res.data = this.handleResponse(body !== undefined ? body : res.data);
+      callback(null, res, res.data);
+      return res;
+    };
+
+    if (this.options.parseReponseAttachments) {
+      const contentType = headersObj['content-type'];
+      const isMultipartResp = contentType && contentType.toLowerCase().indexOf('multipart/related') > -1;
+      if (isMultipartResp) {
+        let boundary;
+        const parsedContentType = MIMEType.parse(contentType);
+        if (parsedContentType) {
+          boundary = parsedContentType.parameters.get('boundary');
         }
-
-        const res: IHttpResponse = {
-          status: response.status,
-          statusText: response.statusText,
-          headers: headersObj,
-          data: responseData,
-          requestHeaders: options.headers,
-        };
-
-        const handleBody = (body?: string) => {
-          res.data = this.handleResponse(body !== undefined ? body : res.data);
-          callback(null, res, res.data);
-          return res;
-        };
-
-        if (this.options.parseReponseAttachments) {
-          const contentType = headersObj['content-type'];
-          const isMultipartResp = contentType && contentType.toLowerCase().indexOf('multipart/related') > -1;
-          if (isMultipartResp) {
-            let boundary;
-            const parsedContentType = MIMEType.parse(contentType);
-            if (parsedContentType) {
-              boundary = parsedContentType.parameters.get('boundary');
-            }
-            if (!boundary) {
-              const err = new Error('Missing boundary from content-type');
+        if (!boundary) {
+          const err = new Error('Missing boundary from content-type');
+          callback(err);
+          throw err;
+        }
+        return new Promise<IHttpResponse>((resolve, reject) => {
+          parseMTOMResp(responseData, boundary, (err, multipartResponse) => {
+            if (err) {
               callback(err);
-              throw err;
+              return reject(err);
             }
-            return new Promise<IHttpResponse>((resolve, reject) => {
-              parseMTOMResp(responseData, boundary, (err, multipartResponse) => {
-                if (err) {
-                  callback(err);
-                  return reject(err);
-                }
-                // first part is the soap response
-                const firstPart = multipartResponse.parts.shift();
-                if (!firstPart || !firstPart.body) {
-                  const parseErr = new Error('Cannot parse multipart response');
-                  callback(parseErr);
-                  return reject(parseErr);
-                }
-                res.mtomResponseAttachments = multipartResponse;
-                const decoder = new TextDecoder(this.options.encoding || 'utf-8');
-                const bodyStr = decoder.decode(firstPart.body);
-                handleBody(bodyStr);
-                resolve(res);
-              });
-            });
-          } else {
-            // Convert ArrayBuffer to string
+            // first part is the soap response
+            const firstPart = multipartResponse.parts.shift();
+            if (!firstPart || !firstPart.body) {
+              const parseErr = new Error('Cannot parse multipart response');
+              callback(parseErr);
+              return reject(parseErr);
+            }
+            res.mtomResponseAttachments = multipartResponse;
             const decoder = new TextDecoder(this.options.encoding || 'utf-8');
-            const bodyStr = decoder.decode(responseData);
-            return handleBody(bodyStr);
-          }
-        } else {
-          return handleBody();
-        }
-      })
-      .catch((err) => {
-        if (timeoutId) clearTimeout(timeoutId);
-        callback(err);
-        throw err;
-      });
+            const bodyStr = decoder.decode(firstPart.body);
+            handleBody(bodyStr);
+            resolve(res);
+          });
+        });
+      } else {
+        // Convert ArrayBuffer to string
+        const decoder = new TextDecoder(this.options.encoding || 'utf-8');
+        const bodyStr = decoder.decode(responseData);
+        return handleBody(bodyStr);
+      }
+    } else {
+      return handleBody();
+    }
+  })
+  .catch((err) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    callback(err);
+    throw err;
+  });
 ```
 
 With this:
 
 ```ts
-    const responsePromise = fetchFn(options.url, fetchOptions).then(
-      async (response) => {
-        if (timeoutId) clearTimeout(timeoutId);
+const responsePromise = fetchFn(options.url, fetchOptions).then(
+  async (response) => {
+    if (timeoutId) clearTimeout(timeoutId);
 
-        const headersObj = this.headersToObject(response.headers);
+    const headersObj = this.headersToObject(response.headers);
 
-        // Determine how to read the response body
-        let responseData: any;
-        if (this.options.parseReponseAttachments) {
-          responseData = await response.arrayBuffer();
-        } else {
-          responseData = await response.text();
+    // Determine how to read the response body
+    let responseData: any;
+    if (this.options.parseReponseAttachments) {
+      responseData = await response.arrayBuffer();
+    } else {
+      responseData = await response.text();
+    }
+
+    const res: IHttpResponse = {
+      status: response.status,
+      statusText: response.statusText,
+      headers: headersObj,
+      data: responseData,
+      requestHeaders: options.headers,
+    };
+
+    const handleBody = (body?: string) => {
+      res.data = this.handleResponse(body !== undefined ? body : res.data);
+      callback(null, res, res.data);
+      return res;
+    };
+
+    if (this.options.parseReponseAttachments) {
+      const contentType = headersObj['content-type'];
+      const isMultipartResp = contentType && contentType.toLowerCase().indexOf('multipart/related') > -1;
+      if (isMultipartResp) {
+        let boundary;
+        const parsedContentType = MIMEType.parse(contentType);
+        if (parsedContentType) {
+          boundary = parsedContentType.parameters.get('boundary');
         }
-
-        const res: IHttpResponse = {
-          status: response.status,
-          statusText: response.statusText,
-          headers: headersObj,
-          data: responseData,
-          requestHeaders: options.headers,
-        };
-
-        const handleBody = (body?: string) => {
-          res.data = this.handleResponse(body !== undefined ? body : res.data);
-          callback(null, res, res.data);
-          return res;
-        };
-
-        if (this.options.parseReponseAttachments) {
-          const contentType = headersObj['content-type'];
-          const isMultipartResp = contentType && contentType.toLowerCase().indexOf('multipart/related') > -1;
-          if (isMultipartResp) {
-            let boundary;
-            const parsedContentType = MIMEType.parse(contentType);
-            if (parsedContentType) {
-              boundary = parsedContentType.parameters.get('boundary');
-            }
-            if (!boundary) {
-              const err = new Error('Missing boundary from content-type');
+        if (!boundary) {
+          const err = new Error('Missing boundary from content-type');
+          callback(err);
+          throw err;
+        }
+        return new Promise<IHttpResponse>((resolve, reject) => {
+          parseMTOMResp(responseData, boundary, (err, multipartResponse) => {
+            if (err) {
               callback(err);
-              throw err;
+              return reject(err);
             }
-            return new Promise<IHttpResponse>((resolve, reject) => {
-              parseMTOMResp(responseData, boundary, (err, multipartResponse) => {
-                if (err) {
-                  callback(err);
-                  return reject(err);
-                }
-                // first part is the soap response
-                const firstPart = multipartResponse.parts.shift();
-                if (!firstPart || !firstPart.body) {
-                  const parseErr = new Error('Cannot parse multipart response');
-                  callback(parseErr);
-                  return reject(parseErr);
-                }
-                res.mtomResponseAttachments = multipartResponse;
-                const decoder = new TextDecoder(this.options.encoding || 'utf-8');
-                const bodyStr = decoder.decode(firstPart.body);
-                handleBody(bodyStr);
-                resolve(res);
-              });
-            });
-          } else {
-            // Convert ArrayBuffer to string
+            // first part is the soap response
+            const firstPart = multipartResponse.parts.shift();
+            if (!firstPart || !firstPart.body) {
+              const parseErr = new Error('Cannot parse multipart response');
+              callback(parseErr);
+              return reject(parseErr);
+            }
+            res.mtomResponseAttachments = multipartResponse;
             const decoder = new TextDecoder(this.options.encoding || 'utf-8');
-            const bodyStr = decoder.decode(responseData);
-            return handleBody(bodyStr);
-          }
-        } else {
-          return handleBody();
-        }
-      },
-      (err) => {
-        if (timeoutId) clearTimeout(timeoutId);
-        callback(err);
-        throw err;
-      },
-    );
+            const bodyStr = decoder.decode(firstPart.body);
+            handleBody(bodyStr);
+            resolve(res);
+          });
+        });
+      } else {
+        // Convert ArrayBuffer to string
+        const decoder = new TextDecoder(this.options.encoding || 'utf-8');
+        const bodyStr = decoder.decode(responseData);
+        return handleBody(bodyStr);
+      }
+    } else {
+      return handleBody();
+    }
+  },
+  (err) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    callback(err);
+    throw err;
+  },
+);
 ```
 
 Only two things change: `.then(async (response) => { ... })` becomes `.then(` with a second argument, and `.catch((err) => { ... })` becomes the second argument (with closing `)` instead of trailing `.catch`). The body of both handlers is identical to the original.
@@ -330,6 +332,7 @@ Expected: commit succeeds. No pre-commit hook installed for this repo.
 `test/client.test.ts` uses `import * as assert from 'node:assert'`. The namespace object isn't callable under Bun ESM — bare `assert(x)` throws `TypeError: assert is not a function`. Convert the seven sites to `assert.ok(x)`.
 
 **Files:**
+
 - Modify: `test/client.test.ts` — lines 74, 301, 308, 387, 421, 790, 1864
 
 - [ ] **Step 1: Verify the seven call sites before editing**
@@ -357,13 +360,13 @@ If counts or line numbers differ, stop and re-read `test/client.test.ts` before 
 Use Edit to change:
 
 ```ts
-      assert(!called);
+assert(!called);
 ```
 
 to:
 
 ```ts
-      assert.ok(!called);
+assert.ok(!called);
 ```
 
 Context for uniqueness: this is the first `assert(!called)` in the file, inside the `should issue async callback for cached wsdl` test. Include surrounding lines in `old_string` if needed — e.g. the preceding line is `      });` at 73 and following is `    });` at 75.
@@ -373,15 +376,15 @@ Context for uniqueness: this is the first `assert(!called)` in the file, inside 
 Change:
 
 ```ts
-                    assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
-                    assert.equal(dataHeaders['Content-ID'], contentType.start);
+assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+assert.equal(dataHeaders['Content-ID'], contentType.start);
 ```
 
 to:
 
 ```ts
-                    assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
-                    assert.equal(dataHeaders['Content-ID'], contentType.start);
+assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+assert.equal(dataHeaders['Content-ID'], contentType.start);
 ```
 
 Using the trailing `assert.equal(...)` line disambiguates this from the identical line at 421.
@@ -391,13 +394,13 @@ Using the trailing `assert.equal(...)` line disambiguates this from the identica
 Change:
 
 ```ts
-                    assert(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
+assert(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
 ```
 
 to:
 
 ```ts
-                    assert.ok(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
+assert.ok(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
 ```
 
 This text is unique in the file — no extra context needed.
@@ -407,13 +410,13 @@ This text is unique in the file — no extra context needed.
 Change:
 
 ```ts
-                assert(body.contentType.indexOf('action') > -1);
+assert(body.contentType.indexOf('action') > -1);
 ```
 
 to:
 
 ```ts
-                assert.ok(body.contentType.indexOf('action') > -1);
+assert.ok(body.contentType.indexOf('action') > -1);
 ```
 
 Unique in the file.
@@ -423,17 +426,17 @@ Unique in the file.
 Change:
 
 ```ts
-                    assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
-                    assert.equal(dataHeaders['Content-ID'], contentType.start);
-                    done();
+assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+assert.equal(dataHeaders['Content-ID'], contentType.start);
+done();
 ```
 
 to:
 
 ```ts
-                    assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
-                    assert.equal(dataHeaders['Content-ID'], contentType.start);
-                    done();
+assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+assert.equal(dataHeaders['Content-ID'], contentType.start);
+done();
 ```
 
 The trailing `done();` disambiguates this from line 301.
@@ -443,13 +446,13 @@ The trailing `done();` disambiguates this from line 301.
 Change:
 
 ```ts
-                assert(!client.lastRequestHeaders.SOAPAction);
+assert(!client.lastRequestHeaders.SOAPAction);
 ```
 
 to:
 
 ```ts
-                assert.ok(!client.lastRequestHeaders.SOAPAction);
+assert.ok(!client.lastRequestHeaders.SOAPAction);
 ```
 
 Unique in the file.
@@ -538,6 +541,7 @@ Expected: commit succeeds.
 The two `should allow passing in XML strings` tests assert `err` truthy and `raw.indexOf('html') !== -1` — conditions the test server can never produce. They were phantom-passing in upstream node-soap via a chained `.close(() => done())` that fired `done` before the SOAP callback. Rewrite to test what `_xml` actually does: substitute the raw string into the outgoing SOAP request body, verified via `client.lastRequest`. Keep `it.skip` at this commit so the diff is review-scoped; the unskip flip happens in Task 5.
 
 **Files:**
+
 - Modify: `test/client.test.ts` — lines 163–194 (sync variant), lines 1910–1923 (async variant)
 
 - [ ] **Step 1: Verify current sync variant content (lines 163–194)**
@@ -556,83 +560,77 @@ If content differs, re-read the file before proceeding.
 Use Edit to replace this exact block (lines 163–194):
 
 ```ts
-    it.skip('should allow passing in XML strings', function (done) {
-      let server: http.Server | null = null;
-      const hostname = '127.0.0.1';
-      const port = testHelpers.nextTestPort();
-      const baseUrl = 'http://' + hostname + ':' + port;
+it.skip('should allow passing in XML strings', function (done) {
+  let server: http.Server | null = null;
+  const hostname = '127.0.0.1';
+  const port = testHelpers.nextTestPort();
+  const baseUrl = 'http://' + hostname + ':' + port;
 
-      server = http
-        .createServer(function (req, res) {
-          res.statusCode = 200;
-          res.write("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'><soapenv:Body/></soapenv:Envelope>");
-          res.end();
-        })
-        .listen(port, hostname, function () {
-          soap.createClient(
-            testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'),
-            Object.assign({ envelopeKey: 'soapenv' }, meta.options),
-            function (err, client) {
-              assert.ok(client);
-              assert.ifError(err);
+  server = http
+    .createServer(function (req, res) {
+      res.statusCode = 200;
+      res.write("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'><soapenv:Body/></soapenv:Envelope>");
+      res.end();
+    })
+    .listen(port, hostname, function () {
+      soap.createClient(
+        testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'),
+        Object.assign({ envelopeKey: 'soapenv' }, meta.options),
+        function (err, client) {
+          assert.ok(client);
+          assert.ifError(err);
 
-              const xmlStr =
-                '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
-              client.MyOperation({ _xml: xmlStr }, function (err, result, raw, soapHeader) {
-                assert.ok(err);
-                assert.notEqual(raw.indexOf('html'), -1);
-                done();
-              });
-            },
-            baseUrl,
-          );
-        });
+          const xmlStr =
+            '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
+          client.MyOperation({ _xml: xmlStr }, function (err, result, raw, soapHeader) {
+            assert.ok(err);
+            assert.notEqual(raw.indexOf('html'), -1);
+            done();
+          });
+        },
+        baseUrl,
+      );
     });
+});
 ```
 
 with:
 
 ```ts
-    it.skip('should allow passing in XML strings', function (done) {
-      const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
-      const hostname = '127.0.0.1';
-      const port = testHelpers.nextTestPort();
-      const baseUrl = 'http://' + hostname + ':' + port;
+it.skip('should allow passing in XML strings', function (done) {
+  const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
+  const hostname = '127.0.0.1';
+  const port = testHelpers.nextTestPort();
+  const baseUrl = 'http://' + hostname + ':' + port;
 
-      const server = http
-        .createServer(function (req, res) {
-          const chunks: Buffer[] = [];
-          req.on('data', (c) => chunks.push(c));
-          req.on('end', () => {
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'text/xml');
-            res.end(
-              "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" +
-                '<soapenv:Body/></soapenv:Envelope>',
-            );
+  const server = http
+    .createServer(function (req, res) {
+      const chunks: Buffer[] = [];
+      req.on('data', (c) => chunks.push(c));
+      req.on('end', () => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/xml');
+        res.end("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" + '<soapenv:Body/></soapenv:Envelope>');
+      });
+    })
+    .listen(port, hostname, function () {
+      soap.createClient(
+        testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'),
+        Object.assign({ envelopeKey: 'soapenv' }, meta.options),
+        function (err, client) {
+          assert.ifError(err);
+          assert.ok(client);
+          client.MyOperation({ _xml: xmlStr }, function (err2) {
+            assert.ifError(err2);
+            assert.ok(client.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
+            server.close();
+            done();
           });
-        })
-        .listen(port, hostname, function () {
-          soap.createClient(
-            testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'),
-            Object.assign({ envelopeKey: 'soapenv' }, meta.options),
-            function (err, client) {
-              assert.ifError(err);
-              assert.ok(client);
-              client.MyOperation({ _xml: xmlStr }, function (err2) {
-                assert.ifError(err2);
-                assert.ok(
-                  client.lastRequest.includes(xmlStr),
-                  'lastRequest should contain the raw _xml content',
-                );
-                server.close();
-                done();
-              });
-            },
-            baseUrl,
-          );
-        });
+        },
+        baseUrl,
+      );
     });
+});
 ```
 
 Note: keep `it.skip` for now. The unskip happens in Task 5.
@@ -653,70 +651,65 @@ If content differs, re-read the file before proceeding.
 Use Edit to replace this exact block:
 
 ```ts
-      it.skip('should allow passing in XML strings', function (done) {
-        soap
-          .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), baseUrl)
-          .then(function (client) {
-            assert.ok(client);
-            const xmlStr =
-              '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
-            return client.MyOperationAsync({ _xml: xmlStr });
-          })
-          .then(function ([result, raw, soapHeader]: any) {})
-          .catch(function (err) {
-            done();
-          });
-      });
+it.skip('should allow passing in XML strings', function (done) {
+  soap
+    .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), baseUrl)
+    .then(function (client) {
+      assert.ok(client);
+      const xmlStr =
+        '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
+      return client.MyOperationAsync({ _xml: xmlStr });
+    })
+    .then(function ([result, raw, soapHeader]: any) {})
+    .catch(function (err) {
+      done();
+    });
+});
 ```
 
 with:
 
 ```ts
-      it.skip('should allow passing in XML strings', function (done) {
-        const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
-        const hostname = '127.0.0.1';
-        const port = testHelpers.nextTestPort();
-        const localBaseUrl = 'http://' + hostname + ':' + port;
+it.skip('should allow passing in XML strings', function (done) {
+  const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
+  const hostname = '127.0.0.1';
+  const port = testHelpers.nextTestPort();
+  const localBaseUrl = 'http://' + hostname + ':' + port;
 
-        const server = http
-          .createServer(function (req, res) {
-            const chunks: Buffer[] = [];
-            req.on('data', (c) => chunks.push(c));
-            req.on('end', () => {
-              res.statusCode = 200;
-              res.setHeader('Content-Type', 'text/xml');
-              res.end(
-                "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" +
-                  '<soapenv:Body/></soapenv:Envelope>',
-              );
-            });
-          })
-          .listen(port, hostname, function () {
-            let capturedClient: any;
-            soap
-              .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), localBaseUrl)
-              .then(function (client) {
-                assert.ok(client);
-                capturedClient = client;
-                return client.MyOperationAsync({ _xml: xmlStr });
-              })
-              .then(function () {
-                assert.ok(
-                  capturedClient.lastRequest.includes(xmlStr),
-                  'lastRequest should contain the raw _xml content',
-                );
-                server.close();
-                done();
-              })
-              .catch(function (err) {
-                server.close();
-                done(err);
-              });
-          });
+  const server = http
+    .createServer(function (req, res) {
+      const chunks: Buffer[] = [];
+      req.on('data', (c) => chunks.push(c));
+      req.on('end', () => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/xml');
+        res.end("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" + '<soapenv:Body/></soapenv:Envelope>');
       });
+    })
+    .listen(port, hostname, function () {
+      let capturedClient: any;
+      soap
+        .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), localBaseUrl)
+        .then(function (client) {
+          assert.ok(client);
+          capturedClient = client;
+          return client.MyOperationAsync({ _xml: xmlStr });
+        })
+        .then(function () {
+          assert.ok(capturedClient.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
+          server.close();
+          done();
+        })
+        .catch(function (err) {
+          server.close();
+          done(err);
+        });
+    });
+});
 ```
 
 Notes on the async rewrite:
+
 - Uses `localBaseUrl` (not `baseUrl`) to avoid shadowing the outer `describe`'s `baseUrl = 'http://127.0.0.1:80'`.
 - `capturedClient` hoists the client out of the first `.then` so the second `.then` can read `lastRequest`.
 - `.catch` now calls `done(err)` with the error rather than swallowing it — so if the rewrite breaks, the failure is visible, not masked as a passing test.
@@ -778,6 +771,7 @@ Expected: commit succeeds.
 Flip `it.skip` → `it` at all eight sites. This is the moment of truth — any remaining bugs surface here.
 
 **Files:**
+
 - Modify: `test/client.test.ts` — lines 66, 163, 254, 376, 397, 774, 1857, 1910
 
 - [ ] **Step 1: Verify the eight `it.skip` sites before flipping**
@@ -949,6 +943,7 @@ Expected best-case: `166 pass / 2 skip / 0 fail`. Stop and proceed directly to T
 Expected likely-case: some MTOM tests fail. If one or more of the three MTOM tests (`should send binary attachments using XOP + MTOM`, `Should preserve SOAP 1.2 "action" header when sending MTOM request`, `Should send MTOM request even without attachment`) fail, continue to Task 6.
 
 Expected unlikely-case: non-MTOM tests fail. If so, capture the failure, stop, and investigate — this indicates a root cause not covered by the design. Common-case diagnosis:
+
 - If a bare `assert(x)` you missed — grep for `^\s*assert(` again.
 - If the XML-strings rewrite captures `lastRequest` before it's set — add a `console.log` inside the MyOperation callback and re-run with `--timeout 15000`.
 
@@ -1004,6 +999,7 @@ Update the commit message at PR-prep time (Task 7) to reference the MTOM-fix com
 Only do this task if Task 5 Step 11 surfaced failure(s) in the MTOM tests. The expected root cause: `textEncoder.encode(part.body)` at `src/http.ts:167` treats an attachment `Buffer` as a string, corrupting binary data at null bytes.
 
 **Files:**
+
 - Modify: `src/http.ts:158-170` (multipart body construction)
 
 - [ ] **Step 1: Confirm the failure mode**
@@ -1027,19 +1023,19 @@ sed -n '158,170p' src/http.ts
 Expected content:
 
 ```ts
-      const dataParts: Uint8Array[] = [textEncoder.encode(`--${boundary}\r\n`)];
+const dataParts: Uint8Array[] = [textEncoder.encode(`--${boundary}\r\n`)];
 
-      let multipartCount = 0;
-      multipart.forEach((part) => {
-        Object.keys(part).forEach((key) => {
-          if (key !== 'body') {
-            dataParts.push(textEncoder.encode(`${key}: ${part[key]}\r\n`));
-          }
-        });
-        dataParts.push(textEncoder.encode('\r\n'), textEncoder.encode(part.body), textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
-        multipartCount++;
-      });
-      options.body = concatUint8Arrays(dataParts);
+let multipartCount = 0;
+multipart.forEach((part) => {
+  Object.keys(part).forEach((key) => {
+    if (key !== 'body') {
+      dataParts.push(textEncoder.encode(`${key}: ${part[key]}\r\n`));
+    }
+  });
+  dataParts.push(textEncoder.encode('\r\n'), textEncoder.encode(part.body), textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
+  multipartCount++;
+});
+options.body = concatUint8Arrays(dataParts);
 ```
 
 - [ ] **Step 3: Apply the encoding fix**
@@ -1047,19 +1043,14 @@ Expected content:
 Use Edit to replace this exact line:
 
 ```ts
-        dataParts.push(textEncoder.encode('\r\n'), textEncoder.encode(part.body), textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
+dataParts.push(textEncoder.encode('\r\n'), textEncoder.encode(part.body), textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
 ```
 
 with:
 
 ```ts
-        const bodyBytes =
-          part.body instanceof Uint8Array
-            ? part.body
-            : typeof part.body === 'string'
-              ? textEncoder.encode(part.body)
-              : textEncoder.encode(String(part.body));
-        dataParts.push(textEncoder.encode('\r\n'), bodyBytes, textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
+const bodyBytes = part.body instanceof Uint8Array ? part.body : typeof part.body === 'string' ? textEncoder.encode(part.body) : textEncoder.encode(String(part.body));
+dataParts.push(textEncoder.encode('\r\n'), bodyBytes, textEncoder.encode(`\r\n--${boundary}${multipartCount === multipart.length - 1 ? '--' : ''}\r\n`));
 ```
 
 `Buffer` extends `Uint8Array`, so `part.body instanceof Uint8Array` covers both plain Uint8Arrays (universal) and Buffers (Node). The `String(part.body)` fallback preserves current behavior for any non-string, non-byte inputs (e.g. numbers) rather than throwing — the previous code would also have coerced via template-string equivalence.
@@ -1196,6 +1187,7 @@ Expected: PR URL returned. Paste it at the end of your summary.
 - [ ] **Step 6: Report completion**
 
 Summarize in your final message:
+
 - Final test count (166 pass / 2 skip / 0 fail).
 - Whether Task 6 ran (yes means MTOM encoding bug was real and fixed; no means MTOM tests passed under just the src/http.ts + test-layer fixes).
 - PR URL.
