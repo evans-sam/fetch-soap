@@ -161,30 +161,38 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
     });
 
     it.skip('should allow passing in XML strings', function (done) {
-      let server: http.Server | null = null;
+      const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
       const hostname = '127.0.0.1';
       const port = testHelpers.nextTestPort();
       const baseUrl = 'http://' + hostname + ':' + port;
 
-      server = http
+      const server = http
         .createServer(function (req, res) {
-          res.statusCode = 200;
-          res.write("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'><soapenv:Body/></soapenv:Envelope>");
-          res.end();
+          const chunks: Buffer[] = [];
+          req.on('data', (c) => chunks.push(c));
+          req.on('end', () => {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'text/xml');
+            res.end(
+              "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" +
+                '<soapenv:Body/></soapenv:Envelope>',
+            );
+          });
         })
         .listen(port, hostname, function () {
           soap.createClient(
             testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'),
             Object.assign({ envelopeKey: 'soapenv' }, meta.options),
             function (err, client) {
-              assert.ok(client);
               assert.ifError(err);
-
-              const xmlStr =
-                '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
-              client.MyOperation({ _xml: xmlStr }, function (err, result, raw, soapHeader) {
-                assert.ok(err);
-                assert.notEqual(raw.indexOf('html'), -1);
+              assert.ok(client);
+              client.MyOperation({ _xml: xmlStr }, function (err2) {
+                assert.ifError(err2);
+                assert.ok(
+                  client.lastRequest.includes(xmlStr),
+                  'lastRequest should contain the raw _xml content',
+                );
+                server.close();
                 done();
               });
             },
@@ -1908,17 +1916,45 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
       });
 
       it.skip('should allow passing in XML strings', function (done) {
-        soap
-          .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), baseUrl)
-          .then(function (client) {
-            assert.ok(client);
-            const xmlStr =
-              '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
-            return client.MyOperationAsync({ _xml: xmlStr });
+        const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
+        const hostname = '127.0.0.1';
+        const port = testHelpers.nextTestPort();
+        const localBaseUrl = 'http://' + hostname + ':' + port;
+
+        const server = http
+          .createServer(function (req, res) {
+            const chunks: Buffer[] = [];
+            req.on('data', (c) => chunks.push(c));
+            req.on('end', () => {
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'text/xml');
+              res.end(
+                "<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" +
+                  '<soapenv:Body/></soapenv:Envelope>',
+              );
+            });
           })
-          .then(function ([result, raw, soapHeader]: any) {})
-          .catch(function (err) {
-            done();
+          .listen(port, hostname, function () {
+            let capturedClient: any;
+            soap
+              .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), localBaseUrl)
+              .then(function (client) {
+                assert.ok(client);
+                capturedClient = client;
+                return client.MyOperationAsync({ _xml: xmlStr });
+              })
+              .then(function () {
+                assert.ok(
+                  capturedClient.lastRequest.includes(xmlStr),
+                  'lastRequest should contain the raw _xml content',
+                );
+                server.close();
+                done();
+              })
+              .catch(function (err) {
+                server.close();
+                done(err);
+              });
           });
       });
 
