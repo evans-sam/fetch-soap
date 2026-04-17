@@ -83,7 +83,7 @@ Replace the CI test job added by PR #9:
 - uses: oven-sh/setup-bun@v2
   with:
     bun-version: <pinned> # match the version in package.json's "packageManager" field
-- run: bun install --frozen-lockfile
+- run: bun ci
 - run: bun test
 - run: bun run build # sanity-check tsc still passes
 - run: bun run lint

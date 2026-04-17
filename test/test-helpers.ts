@@ -12,13 +12,7 @@ interface MockResponse {
 type RequestCallback = (err: NodeJS.ErrnoException | null, response?: MockResponse, body?: string) => void;
 
 interface MockHttpClient {
-  request(
-    rurl: string,
-    data: unknown,
-    callback: RequestCallback,
-    exheaders?: Record<string, string>,
-    exoptions?: Record<string, unknown>,
-  ): { then(resolve: (r: MockResponse) => void, reject?: (e: unknown) => void): unknown; catch(reject: (e: unknown) => void): unknown };
+  request(rurl: string, data: unknown, callback: RequestCallback, exheaders?: Record<string, string>, exoptions?: Record<string, unknown>): Promise<MockResponse> | ReturnType<HttpClient['request']>;
 }
 
 export function createMockHttpClient(baseDir?: string, realHttpClient?: HttpClient): MockHttpClient {
@@ -37,40 +31,35 @@ export function createMockHttpClient(baseDir?: string, realHttpClient?: HttpClie
       let filePath = rurl.replace(/^https?:\/\/test-files/, '');
       filePath = path.normalize(filePath);
 
-      fs.readFile(filePath, 'utf8', (err, content) => {
-        if (err) {
-          return callback(err);
-        }
-        const response: MockResponse = {
-          status: 200,
-          statusCode: 200,
-          headers: { 'content-type': 'application/xml' },
-          data: content,
-        };
-        callback(null, response, content);
+      // Single fs.readFile; callback and promise resolve off the same read,
+      // matching the real HttpClient contract where the callback and the
+      // returned promise both reflect one HTTP round-trip.
+      const responsePromise = new Promise<MockResponse>((resolve, reject) => {
+        fs.readFile(filePath, 'utf8', (err, content) => {
+          if (err) {
+            callback(err);
+            reject(err);
+            return;
+          }
+          const response: MockResponse = {
+            status: 200,
+            statusCode: 200,
+            headers: { 'content-type': 'application/xml' },
+            data: content,
+          };
+          callback(null, response, content);
+          resolve(response);
+        });
       });
 
-      return {
-        then(resolve, reject) {
-          fs.readFile(filePath, 'utf8', (err, content) => {
-            if (err) {
-              if (reject) reject(err);
-              return;
-            }
-            const response: MockResponse = {
-              status: 200,
-              statusCode: 200,
-              headers: { 'content-type': 'application/xml' },
-              data: content,
-            };
-            if (resolve) resolve(response);
-          });
-          return this;
-        },
-        catch(_reject) {
-          return this;
-        },
-      };
+      // Callback is the primary error channel; swallow unattached rejections
+      // so consumers that only use the callback don't surface as unhandled.
+      // Mirrors the pattern in src/http.ts's request().
+      responsePromise.catch(() => {
+        /* handled by callback */
+      });
+
+      return responsePromise;
     },
   };
 }
