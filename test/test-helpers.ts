@@ -81,6 +81,16 @@ export function toTestUrl(filePath: string): string {
   return 'http://test-files' + urlPath;
 }
 
+// Monotonic port allocator for integration tests. Each test calling
+// nextTestPort() gets a fresh port in the 15099+ range. Avoids EADDRINUSE
+// when tests run sequentially without mocha --bail (since each test would
+// otherwise reuse the same hardcoded port and collide when prior servers
+// haven't fully closed).
+let _testPortCounter = 15099;
+export function nextTestPort(): number {
+  return _testPortCounter++;
+}
+
 export function getTestOptions(baseDir: string, additionalOptions?: Record<string, unknown>): Record<string, unknown> {
   const options: Record<string, unknown> = {
     httpClient: createMockHttpClient(baseDir),
