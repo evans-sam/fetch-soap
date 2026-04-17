@@ -24,10 +24,7 @@ let port: number;
 // The SendCDATA fixture fails only as collateral from state left behind
 // by the fooOp failure; it passes in isolation. Skipping both until src is
 // aligned with the fixture's intent.
-const SKIPPED_FIXTURES = new Set<string>([
-  'fooOp__should_return_back_good_response_object',
-  'SendCDATA__cdata_preserves_leading_and_trailing_whitespace_when_preserveWhitespace_option_is_true',
-]);
+const SKIPPED_FIXTURES = new Set<string>(['fooOp__should_return_back_good_response_object', 'SendCDATA__cdata_preserves_leading_and_trailing_whitespace_when_preserveWhitespace_option_is_true']);
 const tests = globSync('./request-response-samples/*', { cwd: import.meta.dir })
   .map(function (node) {
     return path.resolve(import.meta.dir, node);
@@ -250,16 +247,7 @@ function generateTest(
   };
 }
 
-function cbCaller(
-  client: any,
-  methodName: string,
-  requestJSON: unknown,
-  responseJSON: unknown,
-  responseSoapHeaderJSON: unknown,
-  options: Record<string, unknown>,
-  attachmentParts: unknown,
-  done: (err?: unknown) => void,
-): void {
+function cbCaller(client: any, methodName: string, requestJSON: unknown, responseJSON: unknown, responseSoapHeaderJSON: unknown, options: Record<string, unknown>, attachmentParts: unknown, done: (err?: unknown) => void): void {
   client[methodName](
     requestJSON,
     function (err: any, json: unknown, body: unknown, soapHeader: unknown) {
@@ -289,16 +277,7 @@ function cbCaller(
   );
 }
 
-function promiseCaller(
-  client: any,
-  methodName: string,
-  requestJSON: unknown,
-  responseJSON: unknown,
-  responseSoapHeaderJSON: unknown,
-  options: Record<string, unknown>,
-  attachmentParts: unknown,
-  done: (err?: unknown) => void,
-): void {
+function promiseCaller(client: any, methodName: string, requestJSON: unknown, responseJSON: unknown, responseSoapHeaderJSON: unknown, options: Record<string, unknown>, attachmentParts: unknown, done: (err?: unknown) => void): void {
   client[methodName](requestJSON)
     .then(function (responseArr: unknown[]) {
       const json = responseArr[0];

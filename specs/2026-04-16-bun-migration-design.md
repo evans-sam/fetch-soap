@@ -13,6 +13,7 @@
 - `test/` contains 19 CJS-style `.js` files (102 `require()` calls, zero `import`s) using mocha + `should` + sinon + timekeeper. These tests have been **non-functional since the initial fetch-soap commit (`96cc6bf`)** — the TS/ESM conversion never updated the test files. This was recently surfaced because PR #9 ([fetch-soap#34](https://github.com/evans-sam/fetch-soap/pull/34)) is adding CI test execution, which exposed the breakage.
 
 The migration has two motivations:
+
 1. Collapse the mismatched CJS/ESM split between `src/` and `test/` by moving the test suite to a single idiomatic runtime.
 2. Adopt Bun as the dev toolchain — faster installs, faster tests, one tool for runtime + test + package manager.
 
@@ -47,16 +48,16 @@ Consumers continue to use Node/browsers/edge as before. Nothing about the publis
 
 ### D3. Assertion + mocking: move off `should`, `sinon`, `timekeeper`.
 
-| Current | Bun equivalent |
-|---|---|
+| Current                                                                   | Bun equivalent                                                              |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | mocha globals (`describe`/`it`/`before`/`after`/`beforeEach`/`afterEach`) | `import { ... } from "bun:test"` (`before`→`beforeAll`, `after`→`afterAll`) |
-| `x.should.equal(y)` | `expect(x).toBe(y)` |
-| `x.should.be.type('function')` | `expect(typeof x).toBe('function')` |
-| `x.should.have.property('foo')` | `expect(x).toHaveProperty('foo')` |
-| `sinon.spy(obj, 'method')` | `spyOn(obj, 'method')` (from `bun:test`) |
-| `sinon.createSandbox()` | Not needed — Bun resets spies between tests, or `mock.restore()` |
-| `sinon.useFakeTimers(ts)` | `setSystemTime(new Date(ts))` |
-| `timekeeper.freeze(d)` / `.reset()` | `setSystemTime(d)` / `setSystemTime()` (no arg resets) |
+| `x.should.equal(y)`                                                       | `expect(x).toBe(y)`                                                         |
+| `x.should.be.type('function')`                                            | `expect(typeof x).toBe('function')`                                         |
+| `x.should.have.property('foo')`                                           | `expect(x).toHaveProperty('foo')`                                           |
+| `sinon.spy(obj, 'method')`                                                | `spyOn(obj, 'method')` (from `bun:test`)                                    |
+| `sinon.createSandbox()`                                                   | Not needed — Bun resets spies between tests, or `mock.restore()`            |
+| `sinon.useFakeTimers(ts)`                                                 | `setSystemTime(new Date(ts))`                                               |
+| `timekeeper.freeze(d)` / `.reset()`                                       | `setSystemTime(d)` / `setSystemTime()` (no arg resets)                      |
 
 **Keep `node:assert`.** 50+ call sites use `assert.ok` / `assert.equal` / `assert.deepEqual`. Bun runs `node:assert` fine. Only rewrite `should`-style assertions. This halves the diff.
 
@@ -81,10 +82,10 @@ Replace the CI test job added by PR #9:
 ```yaml
 - uses: oven-sh/setup-bun@v2
   with:
-    bun-version: <pinned>   # match the version in package.json's "packageManager" field
+    bun-version: <pinned> # match the version in package.json's "packageManager" field
 - run: bun install --frozen-lockfile
 - run: bun test
-- run: bun run build        # sanity-check tsc still passes
+- run: bun run build # sanity-check tsc still passes
 - run: bun run lint
 - run: bun run format:check
 ```
@@ -92,6 +93,7 @@ Replace the CI test job added by PR #9:
 ### D7. Sequence with PR #9.
 
 User-chosen option A:
+
 1. Small unblock PR lands on master (separate from this design — likely rename `test/*-test.js` → `test/*-test.cjs`, or equivalent minimal fix).
 2. PR #9 / [fetch-soap#34](https://github.com/evans-sam/fetch-soap/pull/34) lands with CI using node + mocha. Regressions get caught during the gap.
 3. This Bun migration PR lands, superseding the CI job from step 2.
