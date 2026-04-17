@@ -13,7 +13,7 @@
     "lodash": "^4.17.21",
     "sax": "^1.4.1",
     "strip-bom": "^5.0.0",
-    "whatwg-mimetype": "4.0.0"
+    "whatwg-mimetype": "5.0.0"
   },
   "repository": {
     "type": "git",
@@ -94,7 +94,7 @@
     "@types/lodash": "^4.17.20",
     "@types/node": "^20.0.0",
     "@types/sax": "^1.2.7",
-    "@types/whatwg-mimetype": "^3.0.2",
+    "@types/whatwg-mimetype": "^5.0.0",
     "body-parser": "^2.2.0",
     "colors": "^1.4.0",
     "diff": "^8.0.2",
