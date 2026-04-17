@@ -63,7 +63,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
       });
     });
 
-    it.skip('should issue async callback for cached wsdl', function (done) {
+    it('should issue async callback for cached wsdl', function (done) {
       let called = false;
       soap.createClient(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), meta.options, function (err, client) {
         assert.ok(client);
@@ -160,7 +160,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
       );
     });
 
-    it.skip('should allow passing in XML strings', function (done) {
+    it('should allow passing in XML strings', function (done) {
       const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
       const hostname = '127.0.0.1';
       const port = testHelpers.nextTestPort();
@@ -259,7 +259,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         return headers;
       }
 
-      it.skip('should send binary attachments using XOP + MTOM', function (done) {
+      it('should send binary attachments using XOP + MTOM', function (done) {
         server = http
           .createServer((req, res) => {
             const bufs: Buffer[] = [];
@@ -381,7 +381,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         done();
       });
 
-      it.skip('Should preserve SOAP 1.2 "action" header when sending MTOM request', function (done) {
+      it('Should preserve SOAP 1.2 "action" header when sending MTOM request', function (done) {
         soap.createClient(
           testHelpers.toTestUrl(import.meta.dir + '/wsdl/attachments.wsdl'),
           Object.assign({ forceSoap12Headers: true }, meta.options),
@@ -402,7 +402,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         );
       });
 
-      it.skip('Should send MTOM request even without attachment', function (done) {
+      it('Should send MTOM request even without attachment', function (done) {
         soap.createClient(
           testHelpers.toTestUrl(import.meta.dir + '/wsdl/attachments.wsdl'),
           Object.assign({ forceSoap12Headers: true }, meta.options),
@@ -779,7 +779,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         );
       });
 
-      it.skip('should add proper headers for soap12', function (done) {
+      it('should add proper headers for soap12', function (done) {
         soap.createClient(
           testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace_soap12.wsdl'),
           Object.assign({ forceSoap12Headers: true }, meta.options),
@@ -1862,7 +1862,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         });
       });
 
-      it.skip('should issue async promise for cached wsdl', function (done) {
+      it('should issue async promise for cached wsdl', function (done) {
         let called = false;
         soap.createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), meta.options).then(function (client) {
           assert.ok(client);
@@ -1915,7 +1915,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         });
       });
 
-      it.skip('should allow passing in XML strings', function (done) {
+      it('should allow passing in XML strings', function (done) {
         const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
         const hostname = '127.0.0.1';
         const port = testHelpers.nextTestPort();
