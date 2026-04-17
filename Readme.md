@@ -1,3 +1,22 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [fetch-soap](#fetch-soap)
+  - [Features](#features)
+  - [What's Different from node-soap](#whats-different-from-node-soap)
+  - [Installation](#installation)
+  - [Basic Usage](#basic-usage)
+  - [API Documentation](#api-documentation)
+    - [Creating a Client](#creating-a-client)
+    - [Calling Methods](#calling-methods)
+    - [Security](#security)
+  - [Migration from node-soap](#migration-from-node-soap)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Acknowledgments](#acknowledgments)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # fetch-soap
 
 A universal SOAP client using the Fetch API - works in browsers, edge runtimes (Cloudflare Workers, Vercel Edge, Deno), and Node.js.
@@ -22,6 +41,12 @@ A universal SOAP client using the Fetch API - works in browsers, edge runtimes (
 
 ```bash
 npm install fetch-soap
+# or
+bun add fetch-soap
+# or
+pnpm add fetch-soap
+# or
+yarn add fetch-soap
 ```
 
 ## Basic Usage
@@ -94,7 +119,7 @@ fetch-soap aims to be a drop-in replacement for node-soap's client functionality
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! The project uses [Bun](https://bun.sh) as its test runner and package manager — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines.
 
 ## License
 
