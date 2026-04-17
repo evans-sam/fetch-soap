@@ -1,4 +1,4 @@
-import { describe, it, beforeAll } from 'bun:test';
+import { describe, it, beforeAll, afterAll } from 'bun:test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as http from 'node:http';
@@ -75,6 +75,11 @@ describe('SOAP Client schema does not change', () => {
       done();
     });
   });
+
+  afterAll(function (done) {
+    server.close(() => done());
+  });
+
   it('should not change the schema', (done) => {
     const tpath = path.join(import.meta.dir, 'request-response-samples', 'RetrieveFareQuoteDateRange__should_handle_child_namespaces');
     const wsdlPath = path.resolve(tpath, 'soap.wsdl');

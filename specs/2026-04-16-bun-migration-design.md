@@ -92,11 +92,13 @@ Replace the CI test job added by PR #9:
 
 ### D7. Sequence with PR #9.
 
-User-chosen option A:
+Originally designed as option A (small unblock PR → PR #9 with node+mocha CI → Bun migration PR). Pivoted during plan execution to **option B** after discovering (a) the mocha suite has never actually run since commit `96cc6bf` due to extensionless ESM imports in `lib/` (tracked as [fetch-soap#43](https://github.com/evans-sam/fetch-soap/issues/43), now fixed by #44), and (b) no unblock commit had been authored. The realized sequence:
 
-1. Small unblock PR lands on master (separate from this design — likely rename `test/*-test.js` → `test/*-test.cjs`, or equivalent minimal fix).
-2. PR #9 / [fetch-soap#34](https://github.com/evans-sam/fetch-soap/pull/34) lands with CI using node + mocha. Regressions get caught during the gap.
-3. This Bun migration PR lands, superseding the CI job from step 2.
+1. PR #9 / [fetch-soap#34](https://github.com/evans-sam/fetch-soap/pull/34) lands with CI using node + mocha — the test job fails on every PR because the suite is broken.
+2. [fetch-soap#43](https://github.com/evans-sam/fetch-soap/issues/43) is filed; the fix lands as PR #44 on master (`fix(esm): emit Node-resolvable ESM by switching to nodenext`).
+3. This Bun migration PR lands, superseding the mocha-based `test` job with `bun test`. No unblock PR was authored — the Bun migration's CI rewrite is the effective fix.
+
+Consequence for verification: there is no "mocha baseline" test count to capture (the mocha suite never ran green). We use static per-file `it(` counts as a floor check instead.
 
 ### D8. Commit structure: preserve git rename history.
 

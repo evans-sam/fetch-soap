@@ -1,6 +1,5 @@
-import { describe, it, expect, spyOn } from 'bun:test';
+import { describe, it, spyOn } from 'bun:test';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as assert from 'node:assert';
 import { createRequire } from 'node:module';
 import * as soap from '../src/soap.js';
@@ -369,7 +368,10 @@ describe('WSDL Parser (non-strict)', () => {
   it('Should create client with empty target namespace', (done) => {
     soap.createClient(testHelpers.toTestUrl(import.meta.dir + '/wsdl/emptyTargetNamespace.txt'), { httpClient: mockHttpClient }, function (err, client) {
       assert.equal(err, null);
-      assert.equal((client.wsdl.definitions.schemas as Record<string, unknown>)[undefined as unknown as string], undefined);
+      // Accessing an object with an `undefined` key coerces to the literal string "undefined".
+      // The original mocha test wrote `schemas[undefined]` which the JS engine converted to
+      // `schemas["undefined"]`; we use the explicit string form here.
+      assert.equal((client.wsdl.definitions.schemas as Record<string, unknown>)['undefined'], undefined);
       done();
     });
   });

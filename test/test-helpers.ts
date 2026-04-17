@@ -22,7 +22,10 @@ interface MockHttpClient {
 }
 
 export function createMockHttpClient(baseDir?: string, realHttpClient?: HttpClient): MockHttpClient {
-  baseDir = baseDir || import.meta.dir;
+  // `baseDir` is retained for API compat (callers pass it via getTestOptions
+  // and direct calls) but isn't needed inside the handler: toTestUrl() embeds
+  // an absolute filesystem path in the URL, which we extract as-is.
+  void baseDir;
   const _realClient = realHttpClient || new HttpClient();
 
   return {

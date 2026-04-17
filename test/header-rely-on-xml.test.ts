@@ -7,7 +7,7 @@ import * as testHelpers from './test-helpers.js';
 describe('testing adding header rely on completed xml', () => {
   let server: http.Server | null = null;
   const hostname = '127.0.0.1';
-  const port = 15099;
+  const port = testHelpers.nextTestPort();
   const baseUrl = 'http://' + hostname + ':' + port;
   const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
   const envelope =
@@ -27,9 +27,11 @@ describe('testing adding header rely on completed xml', () => {
   });
 
   afterAll(function (done) {
-    server?.close();
-    server = null;
-    done();
+    if (!server) return done();
+    server.close(() => {
+      server = null;
+      done();
+    });
   });
 
   it('should add header to request, which created from xml before request', function (done) {
@@ -70,8 +72,13 @@ describe('testing adding header rely on completed xml', () => {
         // Replace httpClient with our custom mock for the actual SOAP call
         (client as any).httpClient = customMockClient;
 
-        (client as any).registerUser('', function (err: any, result: any) {
-          // Verify the header was added to the request
+        // `err` and `_result` are intentionally ignored: this test verifies
+        // request-side behavior (the `request` listener's outgoing-header
+        // mutation). The mock response envelope doesn't match registerUser's
+        // output schema, so response parsing errors — orthogonal to the
+        // assertion. `capturedHeaders` is populated by the mock httpClient
+        // before any response handling runs.
+        (client as any).registerUser('', function (_err: any, _result: any) {
           assert.ok(capturedHeaders);
           assert.ok(capturedHeaders![testHeaderKey]);
           assert.equal(capturedHeaders![testHeaderKey], testHeaderValue);

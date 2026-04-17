@@ -278,13 +278,14 @@ function cbCaller(client: any, methodName: string, requestJSON: unknown, respons
 }
 
 function promiseCaller(client: any, methodName: string, requestJSON: unknown, responseJSON: unknown, responseSoapHeaderJSON: unknown, options: Record<string, unknown>, attachmentParts: unknown, done: (err?: unknown) => void): void {
-  client[methodName](requestJSON)
+  // Forward `options` to match cbCaller — otherwise the promisified variant
+  // silently exercises different behavior from the callback path.
+  client[methodName](requestJSON, options)
     .then(function (responseArr: unknown[]) {
       const json = responseArr[0];
       const soapHeader = responseArr[2];
 
       if (requestJSON) {
-        // assert.deepEqual(json, responseJSON);
         assert.equal(JSON.stringify(typeof json === 'undefined' ? null : json), JSON.stringify(responseJSON));
         if (responseSoapHeaderJSON) {
           assert.equal(JSON.stringify(soapHeader), JSON.stringify(responseSoapHeaderJSON));
@@ -293,15 +294,23 @@ function promiseCaller(client: any, methodName: string, requestJSON: unknown, re
           assert.deepEqual(client.lastResponseAttachments.parts, attachmentParts);
         }
       }
+      done();
     })
     .catch(function (err: any) {
+      // The expected-error fixtures have `requestJSON` set and a known
+      // `err.root` shape; verify that shape, but propagate any assertion
+      // failure to done(err) rather than swallowing in `.finally`.
       if (requestJSON) {
-        assert.notEqual('undefined: undefined', err.message);
-        assert.deepEqual(err.root, responseJSON);
+        try {
+          assert.notEqual('undefined: undefined', err.message);
+          assert.deepEqual(err.root, responseJSON);
+          done();
+        } catch (assertionErr) {
+          done(assertionErr);
+        }
+      } else {
+        done(err);
       }
-    })
-    .finally(function () {
-      done();
     });
 }
 

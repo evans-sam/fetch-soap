@@ -221,7 +221,13 @@ export class HttpClient implements IHttpClient {
     if (exoptions !== undefined && exoptions.ntlm) {
       const error = new Error('NTLM authentication is not supported. NTLM requires Node.js-specific TCP socket handling.');
       queueMicrotask(() => callback(error));
-      return Promise.reject(error);
+      const ntlmRejection = Promise.reject(error);
+      // Same no-op handler as the main responsePromise path below — keeps
+      // callback-only consumers from surfacing an unhandled rejection.
+      ntlmRejection.catch(() => {
+        /* handled by callback */
+      });
+      return ntlmRejection;
     }
 
     const fetchOptions: RequestInit = {
