@@ -1,42 +1,29 @@
 name: PR Build
 on: pull_request
 jobs:
-  code-quality:
+  build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: lts/*
-      - run: npm ci
-      - run: npm run build
-      - run: npm run lint
-      - run: npm run format:check
+          bun-version: 1.3.11 # match packageManager in package.json
+      - run: bun ci
+      - run: bun test
+      - run: bun run build # sanity-check tsc still passes
+      - run: bun run lint
+      - run: bun run format:check
 
   # Fails the PR on high/critical CVEs in production dependencies.
-  # --omit=dev is required: known devDep findings (mocha/sinon transitive chain)
-  # are tracked separately in #22 and would otherwise cause spurious failures.
-  # If a production transitive CVE ever becomes unfixable, consider layering
-  # an allowlist tool (audit-ci, better-npm-audit) on top of this step.
+  # Replaces the npm audit job added in #36 (known devDep findings
+  # tracked in #22; --prod scopes to production deps only).
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: lts/*
-      - run: npm audit --omit=dev --audit-level=high
-
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
+          bun-version: 1.3.11
+      - run: bun audit --prod --audit-level=high

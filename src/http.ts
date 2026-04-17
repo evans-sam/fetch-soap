@@ -221,7 +221,13 @@ export class HttpClient implements IHttpClient {
     if (exoptions !== undefined && exoptions.ntlm) {
       const error = new Error('NTLM authentication is not supported. NTLM requires Node.js-specific TCP socket handling.');
       queueMicrotask(() => callback(error));
-      return Promise.reject(error);
+      const ntlmRejection = Promise.reject(error);
+      // Same no-op handler as the main responsePromise path below — keeps
+      // callback-only consumers from surfacing an unhandled rejection.
+      ntlmRejection.catch(() => {
+        /* handled by callback */
+      });
+      return ntlmRejection;
     }
 
     const fetchOptions: RequestInit = {
@@ -315,6 +321,15 @@ export class HttpClient implements IHttpClient {
         callback(err);
         throw err;
       });
+
+    // Swallow rejection for consumers who don't await the returned promise.
+    // The callback is the primary error channel; re-throwing inside the catch
+    // above preserves the rejection for consumers who DO await, but without
+    // this no-op handler the rejection surfaces as an unhandled rejection
+    // (harmless under Node + mocha, but Bun treats it as a test failure).
+    responsePromise.catch(() => {
+      /* handled by callback */
+    });
 
     return responsePromise;
   }

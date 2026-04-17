@@ -1,13 +1,13 @@
-'use strict';
+import { describe, it, beforeAll, afterAll } from 'bun:test';
+import * as assert from 'node:assert';
+import * as http from 'node:http';
+import * as soap from '../src/soap.js';
 
-var assert = require('assert');
-var http = require('http');
-var soap = require('../lib/soap');
-var server;
+let server: http.Server;
 
 describe('Preserve data encoding from endpoint response', function () {
   // Use inline WSDL to avoid needing mock httpClient
-  var wsdl =
+  const wsdl =
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<definitions name="HelloService" targetNamespace="http://www.examples.com/wsdl/HelloService.wsdl" xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://www.examples.com/wsdl/HelloService.wsdl" xmlns:xsd="http://www.w3.org/2001/XMLSchema">' +
     '<message name="SayHelloRequest"><part name="firstName" type="xsd:string"/></message>' +
@@ -16,11 +16,11 @@ describe('Preserve data encoding from endpoint response', function () {
     '<binding name="Hello_Binding" type="tns:Hello_PortType"><soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/><operation name="sayHello"><soap:operation soapAction="sayHello"/><input><soap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="urn:examples:helloservice" use="encoded"/></input><output><soap:body encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" namespace="urn:examples:helloservice" use="encoded"/></output></operation></binding>' +
     '<service name="Hello_Service"><documentation>WSDL File for HelloService</documentation><port binding="tns:Hello_Binding" name="Hello_Port"><soap:address location="http://localhost:51515/SayHello/"/></port></service>' +
     '</definitions>';
-  var expectedString = 'àáÁÉÈÀçãü';
-  var xml = `<?xml version=\"1.0\" encoding=\"iso-8859-1\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"  xmlns:tns=\"http://www.examples.com/wsdl/HelloService.wsdl\"><soap:Body><tns:sayHelloResponse>${expectedString}</tns:sayHelloResponse></soap:Body></soap:Envelope>`;
-  var xmlEncoded = Buffer.from(xml, 'binary');
+  const expectedString = 'àáÁÉÈÀçãü';
+  const xml = `<?xml version=\"1.0\" encoding=\"iso-8859-1\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"  xmlns:tns=\"http://www.examples.com/wsdl/HelloService.wsdl\"><soap:Body><tns:sayHelloResponse>${expectedString}</tns:sayHelloResponse></soap:Body></soap:Envelope>`;
+  const xmlEncoded = Buffer.from(xml, 'binary');
 
-  before(function (done) {
+  beforeAll(function (done) {
     server = http
       .createServer(function (req, res) {
         res.statusCode = 200;
@@ -29,15 +29,16 @@ describe('Preserve data encoding from endpoint response', function () {
       .listen(51515, done);
   });
 
-  after(function () {
+  afterAll(function () {
     server.close();
   });
 
   it('Should read special characters with enconding option with success', function (done) {
-    var url = 'http://' + server.address().address + ':' + server.address().port;
+    const addr = server.address() as { address: string; port: number };
+    let url = 'http://' + addr.address + ':' + addr.port;
 
-    if (server.address().address === '0.0.0.0' || server.address().address === '::') {
-      url = 'http://127.0.0.1:' + server.address().port;
+    if (addr.address === '0.0.0.0' || addr.address === '::') {
+      url = 'http://127.0.0.1:' + addr.port;
     }
 
     soap.createClient(
@@ -73,10 +74,11 @@ describe('Preserve data encoding from endpoint response', function () {
   });
 
   it('Should read special characters with enconding option with error', function (done) {
-    var url = 'http://' + server.address().address + ':' + server.address().port;
+    const addr = server.address() as { address: string; port: number };
+    let url = 'http://' + addr.address + ':' + addr.port;
 
-    if (server.address().address === '0.0.0.0' || server.address().address === '::') {
-      url = 'http://127.0.0.1:' + server.address().port;
+    if (addr.address === '0.0.0.0' || addr.address === '::') {
+      url = 'http://127.0.0.1:' + addr.port;
     }
 
     soap.createClient(

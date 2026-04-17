@@ -37,10 +37,26 @@ Before submitting code, verify it works in:
 - Ensure all existing tests pass
 - If your change affects browser/edge compatibility, note this in the PR
 
+### Toolchain
+
+This project uses [Bun](https://bun.sh) as its test runner and package manager. Install Bun before running any commands below:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+Then:
+
+```bash
+bun install       # install dependencies
+bun test          # run the test suite
+bun run build     # build lib/ via tsc
+```
+
 ### Code Style
 
-- Run `npm run lint` before submitting
-- Run `npm run format` to format code with Prettier
+- Run `bun run lint` before submitting
+- Run `bun run format` to format code with Prettier
 - TypeScript is preferred for new code
 
 ## Issue Expiration

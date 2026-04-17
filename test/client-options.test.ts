@@ -1,12 +1,11 @@
-'use strict';
-
-var soap = require('..'),
-  assert = require('assert'),
-  testHelpers = require('./test-helpers');
+import { describe, it } from 'bun:test';
+import * as assert from 'node:assert';
+import * as soap from '../src/soap.js';
+import * as testHelpers from './test-helpers.js';
 
 describe('SOAP Client', function () {
   it('should set WSDL options to those specified in createClient', function (done) {
-    var options = testHelpers.getTestOptions(__dirname, {
+    const options = testHelpers.getTestOptions(import.meta.dir, {
       ignoredNamespaces: {
         namespaces: ['ignoreThisNS'],
         override: true,
@@ -18,7 +17,7 @@ describe('SOAP Client', function () {
       namespaceArrayElements: true,
     });
 
-    var wsdlUrl = testHelpers.toTestUrl(__dirname + '/wsdl/json_response.wsdl');
+    const wsdlUrl = testHelpers.toTestUrl(import.meta.dir + '/wsdl/json_response.wsdl');
     soap.createClient(wsdlUrl, options, function (err, client) {
       assert.ok(client);
       assert.ifError(err);

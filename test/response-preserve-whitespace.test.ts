@@ -1,13 +1,13 @@
-'use strict';
+import { describe, it, beforeAll, afterAll } from 'bun:test';
+import * as assert from 'node:assert';
+import * as http from 'node:http';
+import * as soap from '../src/soap.js';
 
-var assert = require('assert');
-var http = require('http');
-var soap = require('../');
-var server;
+let server: http.Server;
 
 describe('Preserve whitespace', function () {
   // Use inline WSDL to avoid needing mock httpClient
-  var wsdl =
+  const wsdl =
     '<?xml version="1.0" encoding="UTF-8"?>' +
     '<definitions name="HelloService" targetNamespace="http://www.examples.com/wsdl/HelloService.wsdl" xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://www.examples.com/wsdl/HelloService.wsdl" xmlns:xsd="http://www.w3.org/2001/XMLSchema">' +
     '<message name="SayHelloRequest"><part name="firstName" type="xsd:string"/></message>' +
@@ -17,7 +17,7 @@ describe('Preserve whitespace', function () {
     '<service name="Hello_Service"><documentation>WSDL File for HelloService</documentation><port binding="tns:Hello_Binding" name="Hello_Port"><soap:address location="http://localhost:51515/SayHello/"/></port></service>' +
     '</definitions>';
 
-  before(function (done) {
+  beforeAll(function (done) {
     server = http
       .createServer(function (req, res) {
         res.statusCode = 200;
@@ -28,15 +28,16 @@ describe('Preserve whitespace', function () {
       .listen(51515, done);
   });
 
-  after(function () {
+  afterAll(function () {
     server.close();
   });
 
   it('preserves leading and trailing whitespace when preserveWhitespace option is true', function (done) {
-    var url = 'http://' + server.address().address + ':' + server.address().port;
+    const addr = server.address() as { address: string; port: number };
+    let url = 'http://' + addr.address + ':' + addr.port;
 
-    if (server.address().address === '0.0.0.0' || server.address().address === '::') {
-      url = 'http://127.0.0.1:' + server.address().port;
+    if (addr.address === '0.0.0.0' || addr.address === '::') {
+      url = 'http://127.0.0.1:' + addr.port;
     }
 
     soap.createClient(
