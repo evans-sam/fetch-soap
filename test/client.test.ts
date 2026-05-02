@@ -177,17 +177,21 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
           });
         })
         .listen(port, hostname, function () {
+          const finish = (err?: any) => server.close(() => done(err));
           soap.createClient(
             testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'),
             Object.assign({ envelopeKey: 'soapenv' }, meta.options),
             function (err, client) {
-              assert.ifError(err);
-              assert.ok(client);
+              if (err) return finish(err);
+              if (!client) return finish(new Error('createClient returned no client'));
               client.MyOperation({ _xml: xmlStr }, function (err2) {
-                assert.ifError(err2);
-                assert.ok(client.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
-                server.close();
-                done();
+                if (err2) return finish(err2);
+                try {
+                  assert.ok(client.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
+                  finish();
+                } catch (assertErr) {
+                  finish(assertErr);
+                }
               });
             },
             baseUrl,
