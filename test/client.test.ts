@@ -63,7 +63,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
       });
     });
 
-    it.skip('should issue async callback for cached wsdl', function (done) {
+    it('should issue async callback for cached wsdl', function (done) {
       let called = false;
       soap.createClient(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), meta.options, function (err, client) {
         assert.ok(client);
@@ -71,7 +71,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         called = true;
         done();
       });
-      assert(!called);
+      assert.ok(!called);
     });
 
     it('should allow customization of httpClient', function (done) {
@@ -160,32 +160,38 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
       );
     });
 
-    it.skip('should allow passing in XML strings', function (done) {
-      let server: http.Server | null = null;
+    it('should allow passing in XML strings', function (done) {
+      const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
       const hostname = '127.0.0.1';
       const port = testHelpers.nextTestPort();
       const baseUrl = 'http://' + hostname + ':' + port;
 
-      server = http
+      const server = http
         .createServer(function (req, res) {
-          res.statusCode = 200;
-          res.write("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'><soapenv:Body/></soapenv:Envelope>");
-          res.end();
+          const chunks: Buffer[] = [];
+          req.on('data', (c) => chunks.push(c));
+          req.on('end', () => {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'text/xml');
+            res.end("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" + '<soapenv:Body/></soapenv:Envelope>');
+          });
         })
         .listen(port, hostname, function () {
+          const finish = (err?: any) => server.close(() => done(err));
           soap.createClient(
             testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'),
             Object.assign({ envelopeKey: 'soapenv' }, meta.options),
             function (err, client) {
-              assert.ok(client);
-              assert.ifError(err);
-
-              const xmlStr =
-                '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
-              client.MyOperation({ _xml: xmlStr }, function (err, result, raw, soapHeader) {
-                assert.ok(err);
-                assert.notEqual(raw.indexOf('html'), -1);
-                done();
+              if (err) return finish(err);
+              if (!client) return finish(new Error('createClient returned no client'));
+              client.MyOperation({ _xml: xmlStr }, function (err2) {
+                if (err2) return finish(err2);
+                try {
+                  assert.ok(client.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
+                  finish();
+                } catch (assertErr) {
+                  finish(assertErr);
+                }
               });
             },
             baseUrl,
@@ -251,7 +257,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         return headers;
       }
 
-      it.skip('should send binary attachments using XOP + MTOM', function (done) {
+      it('should send binary attachments using XOP + MTOM', function (done) {
         server = http
           .createServer((req, res) => {
             const bufs: Buffer[] = [];
@@ -298,14 +304,14 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
                     assert.equal(body.parts.length, 2);
 
                     const dataHeaders = body.parts[0];
-                    assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+                    assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
                     assert.equal(dataHeaders['Content-ID'], contentType.start);
 
                     const attachmentHeaders = body.parts[1];
                     assert.equal(attachmentHeaders['Content-Type'], attachment.mimetype);
                     assert.equal(attachmentHeaders['Content-Transfer-Encoding'], 'binary');
                     assert.equal(attachmentHeaders['Content-ID'], '<' + attachment.contentId + '>');
-                    assert(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
+                    assert.ok(attachmentHeaders['Content-Disposition'].indexOf(attachment.name) > -1);
 
                     server!.close();
                     done();
@@ -373,7 +379,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         done();
       });
 
-      it.skip('Should preserve SOAP 1.2 "action" header when sending MTOM request', function (done) {
+      it('Should preserve SOAP 1.2 "action" header when sending MTOM request', function (done) {
         soap.createClient(
           testHelpers.toTestUrl(import.meta.dir + '/wsdl/attachments.wsdl'),
           Object.assign({ forceSoap12Headers: true }, meta.options),
@@ -384,7 +390,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
               {},
               function (error: any, response: any, body: any, soapHeader: any, rawRequest: any) {
                 assert.ifError(error);
-                assert(body.contentType.indexOf('action') > -1);
+                assert.ok(body.contentType.indexOf('action') > -1);
                 done();
               },
               { attachments: [attachment] },
@@ -394,7 +400,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         );
       });
 
-      it.skip('Should send MTOM request even without attachment', function (done) {
+      it('Should send MTOM request even without attachment', function (done) {
         soap.createClient(
           testHelpers.toTestUrl(import.meta.dir + '/wsdl/attachments.wsdl'),
           Object.assign({ forceSoap12Headers: true }, meta.options),
@@ -418,7 +424,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
                 assert.equal(body.parts.length, 1);
 
                 const dataHeaders = body.parts[0];
-                assert(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
+                assert.ok(dataHeaders['Content-Type'].indexOf('application/xop+xml') > -1);
                 assert.equal(dataHeaders['Content-ID'], contentType.start);
                 done();
               },
@@ -771,7 +777,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         );
       });
 
-      it.skip('should add proper headers for soap12', function (done) {
+      it('should add proper headers for soap12', function (done) {
         soap.createClient(
           testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace_soap12.wsdl'),
           Object.assign({ forceSoap12Headers: true }, meta.options),
@@ -787,7 +793,7 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
                 assert.ok(client.lastRequest);
                 assert.equal(client.lastRequestHeaders['Content-Type'], 'application/soap+xml; charset=utf-8; action="MyOperation"');
                 assert.notEqual(client.lastRequest.indexOf('xmlns:soap=\"http://www.w3.org/2003/05/soap-envelope\"'), -1);
-                assert(!client.lastRequestHeaders.SOAPAction);
+                assert.ok(!client.lastRequestHeaders.SOAPAction);
                 done();
               },
               null,
@@ -1854,14 +1860,14 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         });
       });
 
-      it.skip('should issue async promise for cached wsdl', function (done) {
+      it('should issue async promise for cached wsdl', function (done) {
         let called = false;
         soap.createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), meta.options).then(function (client) {
           assert.ok(client);
           called = true;
           done();
         });
-        assert(!called);
+        assert.ok(!called);
       });
 
       it('should allow customization of httpClient', function (done) {
@@ -1907,18 +1913,40 @@ const mockHttpClient = testHelpers.createMockHttpClient(import.meta.dir);
         });
       });
 
-      it.skip('should allow passing in XML strings', function (done) {
-        soap
-          .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), baseUrl)
-          .then(function (client) {
-            assert.ok(client);
-            const xmlStr =
-              '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n\t<head>\n\t\t<title>404 - Not Found</title>\n\t</head>\n\t<body>\n\t\t<h1>404 - Not Found</h1>\n\t\t<script type="text/javascript" src="http://gp1.wpc.edgecastcdn.net/00222B/beluga/pilot_rtm/beluga_beacon.js"></script>\n\t</body>\n</html>';
-            return client.MyOperationAsync({ _xml: xmlStr });
+      it('should allow passing in XML strings', function (done) {
+        const xmlStr = '<custom-raw-xml>hello</custom-raw-xml>';
+        const hostname = '127.0.0.1';
+        const port = testHelpers.nextTestPort();
+        const localBaseUrl = 'http://' + hostname + ':' + port;
+
+        const server = http
+          .createServer(function (req, res) {
+            const chunks: Buffer[] = [];
+            req.on('data', (c) => chunks.push(c));
+            req.on('end', () => {
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'text/xml');
+              res.end("<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/'>" + '<soapenv:Body/></soapenv:Envelope>');
+            });
           })
-          .then(function ([result, raw, soapHeader]: any) {})
-          .catch(function (err) {
-            done();
+          .listen(port, hostname, function () {
+            let capturedClient: any;
+            soap
+              .createClientAsync(testHelpers.toTestUrl(import.meta.dir + '/wsdl/default_namespace.wsdl'), Object.assign({ envelopeKey: 'soapenv' }, meta.options), localBaseUrl)
+              .then(function (client) {
+                assert.ok(client);
+                capturedClient = client;
+                return client.MyOperationAsync({ _xml: xmlStr });
+              })
+              .then(function () {
+                assert.ok(capturedClient.lastRequest.includes(xmlStr), 'lastRequest should contain the raw _xml content');
+                server.close();
+                done();
+              })
+              .catch(function (err) {
+                server.close();
+                done(err);
+              });
           });
       });
 
